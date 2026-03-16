@@ -1,0 +1,180 @@
+Usando as configurações de inicialização de C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Academics\KiteFlow.Services.Academics.Api\Properties\launchSettings.json...
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (19ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE courses
+ADD COLUMN IF NOT EXISTS "TotalMinutes" integer NULL;
+
+UPDATE courses
+SET "TotalMinutes" = COALESCE("TotalMinutes", GREATEST("TotalLessons", 0) * 60)
+WHERE "TotalMinutes" IS NULL;
+
+ALTER TABLE courses
+ALTER COLUMN "TotalMinutes" SET NOT NULL;
+
+ALTER TABLE courses
+ALTER COLUMN "TotalLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE enrollments
+ADD COLUMN IF NOT EXISTS "IncludedMinutesSnapshot" integer NULL;
+
+ALTER TABLE enrollments
+ADD COLUMN IF NOT EXISTS "UsedMinutes" integer NULL;
+
+UPDATE enrollments
+SET "IncludedMinutesSnapshot" = COALESCE("IncludedMinutesSnapshot", GREATEST("IncludedLessonsSnapshot", 0) * 60),
+    "UsedMinutes" = COALESCE("UsedMinutes", GREATEST("UsedLessons", 0) * 60)
+WHERE "IncludedMinutesSnapshot" IS NULL
+   OR "UsedMinutes" IS NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "IncludedMinutesSnapshot" SET NOT NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "UsedMinutes" SET NOT NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "IncludedLessonsSnapshot" SET DEFAULT 0;
+
+ALTER TABLE enrollments
+ALTER COLUMN "UsedLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE enrollment_balance_ledger
+ADD COLUMN IF NOT EXISTS "DeltaMinutes" integer NULL;
+
+UPDATE enrollment_balance_ledger
+SET "DeltaMinutes" = COALESCE("DeltaMinutes", "DeltaLessons" * 60)
+WHERE "DeltaMinutes" IS NULL;
+
+ALTER TABLE enrollment_balance_ledger
+ALTER COLUMN "DeltaMinutes" SET NOT NULL;
+
+ALTER TABLE enrollment_balance_ledger
+ALTER COLUMN "DeltaLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE students
+ADD COLUMN IF NOT EXISTS "IdentityUserId" uuid NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "StudentConfirmedAtUtc" timestamp with time zone NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "StudentConfirmationNote" character varying(1000) NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE IF NOT EXISTS student_portal_notifications
+(
+    "Id" uuid NOT NULL,
+    "SchoolId" uuid NOT NULL,
+    "StudentId" uuid NOT NULL,
+    "LessonId" uuid NULL,
+    "Category" character varying(50) NOT NULL,
+    "Title" character varying(160) NOT NULL,
+    "Message" character varying(1500) NOT NULL,
+    "ActionLabel" character varying(80) NULL,
+    "ActionPath" character varying(250) NULL,
+    "ReadAtUtc" timestamp with time zone NULL,
+    "CreatedAtUtc" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_student_portal_notifications" PRIMARY KEY ("Id")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_student_portal_notifications_SchoolId_StudentId_CreatedAtUtc"
+ON student_portal_notifications ("SchoolId", "StudentId", "CreatedAtUtc");
+
+CREATE INDEX IF NOT EXISTS "IX_student_portal_notifications_SchoolId_StudentId_ReadAtUtc"
+ON student_portal_notifications ("SchoolId", "StudentId", "ReadAtUtc");
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DROP INDEX IF EXISTS "IX_students_SchoolId_IdentityUserId";
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE UNIQUE INDEX IF NOT EXISTS "IX_students_SchoolId_IdentityUserId_UQ"
+ON students ("SchoolId", "IdentityUserId")
+WHERE "IdentityUserId" IS NOT NULL;
+fail: Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor[43]
+      An exception occurred while trying to decrypt the element.
+      System.Security.Cryptography.CryptographicException: Error occurred during a cryptographic operation.
+         at Microsoft.AspNetCore.DataProtection.Cng.DpapiSecretSerializerHelper.UnprotectWithDpapiCore(Byte* pbProtectedData, UInt32 cbProtectedData, Byte* pbOptionalEntropy, UInt32 cbOptionalEntropy)
+         at Microsoft.AspNetCore.DataProtection.Cng.DpapiSecretSerializerHelper.UnprotectWithDpapi(Byte[] protectedSecret)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor.Decrypt(XElement encryptedElement)
+fail: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[24]
+      An exception occurred while processing the key element '<key id="580135b0-fa5a-474d-b3fd-2e3d5e56fffe" version="1" />'.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass8_0.<Define>g__Log|0(ILogger logger, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor.Decrypt(XElement encryptedElement)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.XmlEncryptionExtensions.DecryptElement(XElement element, IActivator activator)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.Microsoft.AspNetCore.DataProtection.KeyManagement.Internal.IInternalXmlKeyManager.DeserializeDescriptorFromKeyElement(XElement keyElement)
+warn: Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver[12]
+      Key {580135b0-fa5a-474d-b3fd-2e3d5e56fffe} is ineligible to be the default key because its CreateEncryptor method failed.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger`1.Microsoft.Extensions.Logging.ILogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass10_0`1.<Define>g__Log|0(ILogger logger, T1 arg1, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.WriteKeyDeserializationErrorToLog(Exception error, XElement keyElement)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.Microsoft.AspNetCore.DataProtection.KeyManagement.Internal.IInternalXmlKeyManager.DeserializeDescriptorFromKeyElement(XElement keyElement)
+         at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+         at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+         at System.Lazy`1.CreateValue()
+         at Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.CngGcmAuthenticatedEncryptorFactory.CreateEncryptorInstance(IKey key)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyBase.CreateEncryptor()
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.CanCreateAuthenticatedEncryptor(IKey key)
+fail: Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider[48]
+      An error occurred while reading the key ring.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger`1.Microsoft.Extensions.Logging.ILogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass12_0`2.<Define>g__Log|0(ILogger logger, T1 arg1, T2 arg2, Exception exception)
+         at Microsoft.Extensions.Logging.LoggingExtensions.KeyIsIneligibleToBeTheDefaultKeyBecauseItsMethodFailed(ILogger logger, Guid keyId, String methodName, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.CanCreateAuthenticatedEncryptor(IKey key)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.FindDefaultKey(DateTimeOffset now, IEnumerable`1 allKeys, IKey& fallbackKey, Boolean& callerShouldGenerateNewKey)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.ResolveDefaultKeyPolicy(DateTimeOffset now, IEnumerable`1 allKeys)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider.CreateCacheableKeyRingCore(DateTimeOffset now, IKey keyJustAdded)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider.GetCurrentKeyRingCore(DateTime utcNow, Boolean forceRefresh)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:7003
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Academics\KiteFlow.Services.Academics.Api

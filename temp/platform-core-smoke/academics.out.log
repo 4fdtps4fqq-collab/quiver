@@ -1,0 +1,512 @@
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (15ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE courses
+ADD COLUMN IF NOT EXISTS "TotalMinutes" integer NULL;
+
+UPDATE courses
+SET "TotalMinutes" = COALESCE("TotalMinutes", GREATEST("TotalLessons", 0) * 60)
+WHERE "TotalMinutes" IS NULL;
+
+ALTER TABLE courses
+ALTER COLUMN "TotalMinutes" SET NOT NULL;
+
+ALTER TABLE courses
+ALTER COLUMN "TotalLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE enrollments
+ADD COLUMN IF NOT EXISTS "IncludedMinutesSnapshot" integer NULL;
+
+ALTER TABLE enrollments
+ADD COLUMN IF NOT EXISTS "UsedMinutes" integer NULL;
+
+UPDATE enrollments
+SET "IncludedMinutesSnapshot" = COALESCE("IncludedMinutesSnapshot", GREATEST("IncludedLessonsSnapshot", 0) * 60),
+    "UsedMinutes" = COALESCE("UsedMinutes", GREATEST("UsedLessons", 0) * 60)
+WHERE "IncludedMinutesSnapshot" IS NULL
+   OR "UsedMinutes" IS NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "IncludedMinutesSnapshot" SET NOT NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "UsedMinutes" SET NOT NULL;
+
+ALTER TABLE enrollments
+ALTER COLUMN "IncludedLessonsSnapshot" SET DEFAULT 0;
+
+ALTER TABLE enrollments
+ALTER COLUMN "UsedLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE enrollment_balance_ledger
+ADD COLUMN IF NOT EXISTS "DeltaMinutes" integer NULL;
+
+UPDATE enrollment_balance_ledger
+SET "DeltaMinutes" = COALESCE("DeltaMinutes", "DeltaLessons" * 60)
+WHERE "DeltaMinutes" IS NULL;
+
+ALTER TABLE enrollment_balance_ledger
+ALTER COLUMN "DeltaMinutes" SET NOT NULL;
+
+ALTER TABLE enrollment_balance_ledger
+ALTER COLUMN "DeltaLessons" SET DEFAULT 0;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE students
+ADD COLUMN IF NOT EXISTS "IdentityUserId" uuid NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "StudentConfirmedAtUtc" timestamp with time zone NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "StudentConfirmationNote" character varying(1000) NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE IF NOT EXISTS student_portal_notifications
+(
+    "Id" uuid NOT NULL,
+    "SchoolId" uuid NOT NULL,
+    "StudentId" uuid NOT NULL,
+    "LessonId" uuid NULL,
+    "Category" character varying(50) NOT NULL,
+    "Title" character varying(160) NOT NULL,
+    "Message" character varying(1500) NOT NULL,
+    "ActionLabel" character varying(80) NULL,
+    "ActionPath" character varying(250) NULL,
+    "ReadAtUtc" timestamp with time zone NULL,
+    "CreatedAtUtc" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_student_portal_notifications" PRIMARY KEY ("Id")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_student_portal_notifications_SchoolId_StudentId_CreatedAtUtc"
+ON student_portal_notifications ("SchoolId", "StudentId", "CreatedAtUtc");
+
+CREATE INDEX IF NOT EXISTS "IX_student_portal_notifications_SchoolId_StudentId_ReadAtUtc"
+ON student_portal_notifications ("SchoolId", "StudentId", "ReadAtUtc");
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DROP INDEX IF EXISTS "IX_students_SchoolId_IdentityUserId";
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE UNIQUE INDEX IF NOT EXISTS "IX_students_SchoolId_IdentityUserId_UQ"
+ON students ("SchoolId", "IdentityUserId")
+WHERE "IdentityUserId" IS NOT NULL;
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+      User profile is available. Using 'C:\Users\filip\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+fail: Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor[43]
+      An exception occurred while trying to decrypt the element.
+      System.Security.Cryptography.CryptographicException: Error occurred during a cryptographic operation.
+         at Microsoft.AspNetCore.DataProtection.Cng.DpapiSecretSerializerHelper.UnprotectWithDpapiCore(Byte* pbProtectedData, UInt32 cbProtectedData, Byte* pbOptionalEntropy, UInt32 cbOptionalEntropy)
+         at Microsoft.AspNetCore.DataProtection.Cng.DpapiSecretSerializerHelper.UnprotectWithDpapi(Byte[] protectedSecret)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor.Decrypt(XElement encryptedElement)
+fail: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[24]
+      An exception occurred while processing the key element '<key id="580135b0-fa5a-474d-b3fd-2e3d5e56fffe" version="1" />'.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass8_0.<Define>g__Log|0(ILogger logger, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor.Decrypt(XElement encryptedElement)
+         at Microsoft.AspNetCore.DataProtection.XmlEncryption.XmlEncryptionExtensions.DecryptElement(XElement element, IActivator activator)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.Microsoft.AspNetCore.DataProtection.KeyManagement.Internal.IInternalXmlKeyManager.DeserializeDescriptorFromKeyElement(XElement keyElement)
+warn: Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver[12]
+      Key {580135b0-fa5a-474d-b3fd-2e3d5e56fffe} is ineligible to be the default key because its CreateEncryptor method failed.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger`1.Microsoft.Extensions.Logging.ILogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass10_0`1.<Define>g__Log|0(ILogger logger, T1 arg1, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.WriteKeyDeserializationErrorToLog(Exception error, XElement keyElement)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager.Microsoft.AspNetCore.DataProtection.KeyManagement.Internal.IInternalXmlKeyManager.DeserializeDescriptorFromKeyElement(XElement keyElement)
+         at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+         at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+         at System.Lazy`1.CreateValue()
+         at Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.CngGcmAuthenticatedEncryptorFactory.CreateEncryptorInstance(IKey key)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyBase.CreateEncryptor()
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.CanCreateAuthenticatedEncryptor(IKey key)
+fail: Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider[48]
+      An error occurred while reading the key ring.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger`1.Microsoft.Extensions.Logging.ILogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass12_0`2.<Define>g__Log|0(ILogger logger, T1 arg1, T2 arg2, Exception exception)
+         at Microsoft.Extensions.Logging.LoggingExtensions.KeyIsIneligibleToBeTheDefaultKeyBecauseItsMethodFailed(ILogger logger, Guid keyId, String methodName, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.CanCreateAuthenticatedEncryptor(IKey key)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.FindDefaultKey(DateTimeOffset now, IEnumerable`1 allKeys, IKey& fallbackKey, Boolean& callerShouldGenerateNewKey)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver.ResolveDefaultKeyPolicy(DateTimeOffset now, IEnumerable`1 allKeys)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider.CreateCacheableKeyRingCore(DateTimeOffset now, IKey keyJustAdded)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider.GetCurrentKeyRingCore(DateTime utcNow, Boolean forceRefresh)
+info: Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService[66]
+      Key ring failed to load during application startup.
+      System.AggregateException: An error occurred while writing to logger(s). (Cannot open log for source '.NET Runtime'. You may not have write access.)
+       ---> System.InvalidOperationException: Cannot open log for source '.NET Runtime'. You may not have write access.
+       ---> System.ComponentModel.Win32Exception (5): Acesso negado.
+         --- End of inner exception stack trace ---
+         at System.Diagnostics.EventLogInternal.OpenForWrite(String currentMachineName)
+         at System.Diagnostics.EventLogInternal.InternalWriteEvent(UInt32 eventID, UInt16 category, EventLogEntryType type, String[] strings, Byte[] rawData, String currentMachineName)
+         at System.Diagnostics.EventLogInternal.WriteEvent(EventInstance instance, Byte[] data, Object[] values)
+         at Microsoft.Extensions.Logging.EventLog.WindowsEventLog.WriteEntry(String message, EventLogEntryType type, Int32 eventID, Int16 category)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.WriteMessage(String message, EventLogEntryType eventLogEntryType, Int32 eventId)
+         at Microsoft.Extensions.Logging.EventLog.EventLogLogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger.<Log>g__LoggerLog|14_0[TState](LogLevel logLevel, EventId eventId, ILogger logger, Exception exception, Func`3 formatter, List`1& exceptions, TState& state)
+         --- End of inner exception stack trace ---
+         at Microsoft.Extensions.Logging.Logger.ThrowLoggingError(List`1 exceptions)
+         at Microsoft.Extensions.Logging.Logger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.Logger`1.Microsoft.Extensions.Logging.ILogger.Log[TState](LogLevel logLevel, EventId eventId, TState state, Exception exception, Func`3 formatter)
+         at Microsoft.Extensions.Logging.LoggerMessage.<>c__DisplayClass8_0.<Define>g__Log|0(ILogger logger, Exception exception)
+         at Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider.GetCurrentKeyRingCore(DateTime utcNow, Boolean forceRefresh)
+         at Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService.StartAsync(CancellationToken token)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:7003
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Academics\KiteFlow.Services.Academics.Api
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/swagger - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/swagger - 301 0 - 18.9970ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/swagger/index.html - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/swagger/index.html - 200 - text/html;charset=utf-8 29.2892ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:7003/api/v1/students - application/json 392
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.StudentsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Create", controller = "Students"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Create(UpsertStudentRequest) on controller KiteFlow.Services.Academics.Api.Controllers.StudentsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (40ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Date), @p2='?' (DbType = DateTime), @p3='?', @p4='?', @p5='?', @p6='?' (DbType = DateTime), @p7='?', @p8='?' (DbType = Guid), @p9='?' (DbType = Boolean), @p10='?', @p11='?', @p12='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO students ("Id", "BirthDate", "CreatedAtUtc", "Email", "EmergencyContactName", "EmergencyContactPhone", "FirstStandUpAtUtc", "FullName", "IdentityUserId", "IsActive", "MedicalNotes", "Phone", "SchoolId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type '<>f__AnonymousType45`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.StudentsController.Create (KiteFlow.Services.Academics.Api) in 254.995ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.StudentsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:7003/api/v1/students - 201 - application/json;+charset=utf-8 319.2680ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:7003/api/v1/instructors - application/json 221
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.InstructorsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Create", controller = "Instructors"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Create(UpsertInstructorRequest) on controller KiteFlow.Services.Academics.Api.Controllers.InstructorsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?', @p3='?', @p4='?' (DbType = Guid), @p5='?' (DbType = Boolean), @p6='?', @p7='?' (DbType = Guid), @p8='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO instructors ("Id", "CreatedAtUtc", "Email", "FullName", "IdentityUserId", "IsActive", "Phone", "SchoolId", "Specialties")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type '<>f__AnonymousType15`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.InstructorsController.Create (KiteFlow.Services.Academics.Api) in 57.3536ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.InstructorsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:7003/api/v1/instructors - 201 - application/json;+charset=utf-8 63.4935ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:7003/api/v1/courses - application/json 109
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.CoursesController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Create", controller = "Courses"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Create(UpsertCourseRequest) on controller KiteFlow.Services.Academics.Api.Controllers.CoursesController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__request_Level_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM courses AS c
+          WHERE c."SchoolId" = @__schoolId_0 AND c."Level" = @__request_Level_1)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (5ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Boolean), @p3='?' (DbType = Int32), @p4='?', @p5='?' (DbType = Decimal), @p6='?' (DbType = Guid), @p7='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO courses ("Id", "CreatedAtUtc", "IsActive", "Level", "Name", "Price", "SchoolId", "TotalMinutes")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type '<>f__AnonymousType10`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.CoursesController.Create (KiteFlow.Services.Academics.Api) in 176.0453ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.CoursesController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:7003/api/v1/courses - 201 - application/json;+charset=utf-8 180.5219ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/api/v1/courses - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.CoursesController.GetAll (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetAll", controller = "Courses"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetAll() on controller KiteFlow.Services.Academics.Api.Controllers.CoursesController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Name", c."Level", c."TotalMinutes", round(c."TotalMinutes"::numeric / 60.0, 2), c."Price", c."IsActive"
+      FROM courses AS c
+      WHERE c."SchoolId" = @__schoolId_0
+      ORDER BY c."Level"
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[<>f__AnonymousType8`7[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Boolean, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], KiteFlow.Services.Academics.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.CoursesController.GetAll (KiteFlow.Services.Academics.Api) in 55.9625ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.CoursesController.GetAll (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/api/v1/courses - 200 - application/json;+charset=utf-8 59.0906ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:7003/api/v1/enrollments - application/json 174
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Create", controller = "Enrollments"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Create(CreateEnrollmentRequest) on controller KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__request_StudentId_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."BirthDate", s."CreatedAtUtc", s."Email", s."EmergencyContactName", s."EmergencyContactPhone", s."FirstStandUpAtUtc", s."FullName", s."IdentityUserId", s."IsActive", s."MedicalNotes", s."Phone", s."SchoolId"
+      FROM students AS s
+      WHERE s."Id" = @__request_StudentId_0 AND s."SchoolId" = @__schoolId_1 AND s."IsActive"
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__request_CourseId_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."CreatedAtUtc", c."IsActive", c."Level", c."Name", c."Price", c."SchoolId", c."TotalMinutes"
+      FROM courses AS c
+      WHERE c."Id" = @__request_CourseId_0 AND c."SchoolId" = @__schoolId_1 AND c."IsActive"
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__request_StudentId_1='?' (DbType = Guid), @__request_CourseId_2='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM enrollments AS e
+          WHERE e."SchoolId" = @__schoolId_0 AND e."StudentId" = @__request_StudentId_1 AND e."CourseId" = @__request_CourseId_2 AND e."Status" = 1)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Guid), @p2='?' (DbType = Decimal), @p3='?' (DbType = DateTime), @p4='?' (DbType = DateTime), @p5='?' (DbType = Int32), @p6='?' (DbType = Guid), @p7='?' (DbType = DateTime), @p8='?' (DbType = Int32), @p9='?' (DbType = Guid), @p10='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO enrollments ("Id", "CourseId", "CoursePriceSnapshot", "CreatedAtUtc", "EndedAtUtc", "IncludedMinutesSnapshot", "SchoolId", "StartedAtUtc", "Status", "StudentId", "UsedMinutes")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type '<>f__AnonymousType13`3[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.Create (KiteFlow.Services.Academics.Api) in 69.2275ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:7003/api/v1/enrollments - 201 - application/json;+charset=utf-8 72.0766ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://localhost:7003/api/v1/lessons - application/json 374
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Create", controller = "Lessons"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Create(CreateLessonRequest) on controller KiteFlow.Services.Academics.Api.Controllers.LessonsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__studentId_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM students AS s
+          WHERE s."Id" = @__studentId_0 AND s."SchoolId" = @__schoolId_1 AND s."IsActive")
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__instructorId_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM instructors AS i
+          WHERE i."Id" = @__instructorId_0 AND i."SchoolId" = @__schoolId_1 AND i."IsActive")
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__lesson_EnrollmentId_Value_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid), @__lesson_StudentId_2='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT e."Id", e."CourseId", e."CoursePriceSnapshot", e."CreatedAtUtc", e."EndedAtUtc", e."IncludedMinutesSnapshot", e."SchoolId", e."StartedAtUtc", e."Status", e."StudentId", e."UsedMinutes"
+      FROM enrollments AS e
+      WHERE e."Id" = @__lesson_EnrollmentId_Value_0 AND e."SchoolId" = @__schoolId_1 AND e."StudentId" = @__lesson_StudentId_2
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (35ms) [Parameters=[@__enrollmentIds_0='?' (DbType = Object), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT e."Id", e."CourseId", e."CoursePriceSnapshot", e."CreatedAtUtc", e."EndedAtUtc", e."IncludedMinutesSnapshot", e."SchoolId", e."StartedAtUtc", e."Status", e."StudentId", e."UsedMinutes"
+      FROM enrollments AS e
+      WHERE e."Id" = ANY (@__enrollmentIds_0) AND e."SchoolId" = @__schoolId_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = Guid), @p4='?' (DbType = Guid), @p5='?' (DbType = DateTime), @p6='?', @p7='?' (DbType = Guid), @p9='?' (DbType = Guid), @p8='?' (DbType = Int32), @p10='?' (DbType = Guid), @p11='?' (DbType = DateTime), @p12='?' (DbType = Int32), @p13='?' (DbType = Guid), @p14='?' (DbType = Guid), @p15='?' (DbType = Int32), @p16='?', @p17='?' (DbType = Guid), @p18='?' (DbType = Decimal), @p19='?' (DbType = DateTime), @p20='?' (DbType = Int32), @p21='?', @p22='?' (DbType = DateTime), @p23='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO enrollment_balance_ledger ("Id", "CreatedAtUtc", "DeltaMinutes", "EnrollmentId", "LessonId", "OccurredAtUtc", "Reason", "SchoolId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7);
+      UPDATE enrollments SET "UsedMinutes" = @p8
+      WHERE "Id" = @p9;
+      INSERT INTO lessons ("Id", "CreatedAtUtc", "DurationMinutes", "EnrollmentId", "InstructorId", "Kind", "Notes", "SchoolId", "SingleLessonPrice", "StartAtUtc", "Status", "StudentConfirmationNote", "StudentConfirmedAtUtc", "StudentId")
+      VALUES (@p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23);
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing CreatedAtActionResult, writing value of type '<>f__AnonymousType17`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.LessonsController.Create (KiteFlow.Services.Academics.Api) in 147.7287ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.Create (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 POST http://localhost:7003/api/v1/lessons - 201 - application/json;+charset=utf-8 150.8195ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/api/v1/lessons/ac84adae-9777-4679-a098-714d94a231b1 - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetById", controller = "Lessons"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetById(System.Guid) on controller KiteFlow.Services.Academics.Api.Controllers.LessonsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@__id_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT l."Id", l."SchoolId", l."Kind", l."Status", l."StudentId", s."FullName", l."InstructorId", i."FullName", l."EnrollmentId", l."SingleLessonPrice", l."StartAtUtc", l."DurationMinutes", l."Notes"
+      FROM lessons AS l
+      INNER JOIN students AS s ON l."StudentId" = s."Id"
+      INNER JOIN instructors AS i ON l."InstructorId" = i."Id"
+      WHERE l."Id" = @__id_0 AND l."SchoolId" = @__schoolId_1
+      LIMIT 1
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType16`13[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api) in 27.2293ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/api/v1/lessons/ac84adae-9777-4679-a098-714d94a231b1 - 200 - application/json;+charset=utf-8 30.9826ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/api/v1/lessons/ac84adae-9777-4679-a098-714d94a231b1 - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetById", controller = "Lessons"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetById(System.Guid) on controller KiteFlow.Services.Academics.Api.Controllers.LessonsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__id_0='?' (DbType = Guid), @__schoolId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT l."Id", l."SchoolId", l."Kind", l."Status", l."StudentId", s."FullName", l."InstructorId", i."FullName", l."EnrollmentId", l."SingleLessonPrice", l."StartAtUtc", l."DurationMinutes", l."Notes"
+      FROM lessons AS l
+      INNER JOIN students AS s ON l."StudentId" = s."Id"
+      INNER JOIN instructors AS i ON l."InstructorId" = i."Id"
+      WHERE l."Id" = @__id_0 AND l."SchoolId" = @__schoolId_1
+      LIMIT 1
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType16`13[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api) in 4.8159ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.LessonsController.GetById (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/api/v1/lessons/ac84adae-9777-4679-a098-714d94a231b1 - 200 - application/json;+charset=utf-8 5.5151ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/api/v1/academics/overview - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.AcademicsOverviewController.GetOverview (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetOverview", controller = "AcademicsOverview"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetOverview(System.Nullable`1[System.DateTime], System.Nullable`1[System.DateTime]) on controller KiteFlow.Services.Academics.Api.Controllers.AcademicsOverviewController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM enrollments AS e
+      WHERE e."SchoolId" = @__schoolId_0 AND e."Status" = 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM lessons AS l
+      WHERE l."SchoolId" = @__schoolId_0 AND l."Status" = 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM lessons AS l
+      WHERE l."SchoolId" = @__schoolId_0 AND l."Status" = 3
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT l."Status", count(*)::int
+      FROM lessons AS l
+      WHERE l."SchoolId" = @__schoolId_0
+      GROUP BY l."Status"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT l."InstructorId" AS "instructorId", count(*)::int AS total, count(*) FILTER (WHERE l."Status" = 3)::int AS realized, count(*) FILTER (WHERE l."Status" = 7)::int AS "noShow", count(*) FILTER (WHERE l."Status" IN (5, 6))::int AS cancelled, count(*) FILTER (WHERE l."Status" = 4)::int AS rescheduled
+      FROM lessons AS l
+      WHERE l."SchoolId" = @__schoolId_0
+      GROUP BY l."InstructorId"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT t."Key" AS day, count(*)::int AS "totalLessons", count(*) FILTER (WHERE t."Status" = 3)::int AS "realizedLessons", count(*) FILTER (WHERE t."Status" IN (5, 6, 7))::int AS "cancelledLessons"
+      FROM (
+          SELECT l."Status", date_trunc('day', l."StartAtUtc", 'UTC') AS "Key"
+          FROM lessons AS l
+          WHERE l."SchoolId" = @__schoolId_0
+      ) AS t
+      GROUP BY t."Key"
+      ORDER BY t."Key"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT i."Id", i."FullName"
+      FROM instructors AS i
+      WHERE i."SchoolId" = @__schoolId_0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM students AS s
+      WHERE s."SchoolId" = @__schoolId_0 AND s."IsActive"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM instructors AS i
+      WHERE i."SchoolId" = @__schoolId_0 AND i."IsActive"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM courses AS c
+      WHERE c."SchoolId" = @__schoolId_0 AND c."IsActive"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__todayStart_1='?' (DbType = DateTime), @__tomorrowStart_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT count(*)::int
+      FROM lessons AS l
+      WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__todayStart_1 AND l."StartAtUtc" < @__tomorrowStart_2
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType5`15[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Collections.Generic.List`1[[<>f__AnonymousType1`2[[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], KiteFlow.Services.Academics.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Collections.Generic.IEnumerable`1[[<>f__AnonymousType6`5[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], KiteFlow.Services.Academics.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Collections.Generic.IEnumerable`1[[<>f__AnonymousType7`7[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], KiteFlow.Services.Academics.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String[], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.AcademicsOverviewController.GetOverview (KiteFlow.Services.Academics.Api) in 82.7184ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.AcademicsOverviewController.GetOverview (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/api/v1/academics/overview - 200 - application/json;+charset=utf-8 86.2245ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:7003/api/v1/enrollments - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.GetAll (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetAll", controller = "Enrollments"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] GetAll(System.Nullable`1[System.Guid], System.Nullable`1[KiteFlow.Services.Academics.Api.Domain.EnrollmentStatus]) on controller KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController (KiteFlow.Services.Academics.Api).
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT e."Id", e."StudentId", s."FullName", e."CourseId", c."Name", e."Status", e."IncludedMinutesSnapshot", e."UsedMinutes", GREATEST(0, e."IncludedMinutesSnapshot" - e."UsedMinutes"), e."CoursePriceSnapshot", e."StartedAtUtc", e."EndedAtUtc"
+      FROM enrollments AS e
+      INNER JOIN students AS s ON e."StudentId" = s."Id"
+      INNER JOIN courses AS c ON e."CourseId" = c."Id"
+      WHERE e."SchoolId" = @__schoolId_0
+      ORDER BY e."CreatedAtUtc" DESC
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.Collections.Generic.List`1[[<>f__AnonymousType11`12[[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Guid, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Nullable`1[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], KiteFlow.Services.Academics.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.GetAll (KiteFlow.Services.Academics.Api) in 11.7142ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'KiteFlow.Services.Academics.Api.Controllers.EnrollmentsController.GetAll (KiteFlow.Services.Academics.Api)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:7003/api/v1/enrollments - 200 - application/json;+charset=utf-8 15.1300ms

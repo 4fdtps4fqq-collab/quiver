@@ -1,0 +1,18 @@
+﻿{
+    "postalCode":  "29010-000",
+    "fullName":  "Aluno Delinquente",
+    "medicalNotes":  "Smoke do bloqueio",
+    "emergencyContactPhone":  "(27) 99999-2222",
+    "state":  "ES",
+    "birthDate":  "2010-01-10",
+    "emergencyContactName":  "Contato Apoio",
+    "identityUserId":  null,
+    "firstStandUpAtUtc":  null,
+    "streetNumber":  "100",
+    "city":  "Vitoria",
+    "street":  "Avenida Teste",
+    "phone":  "(27) 99999-1111",
+    "neighborhood":  "Centro",
+    "addressComplement":  "Sala 1",
+    "email":  "student.block.20260314171909@quiver.local"
+}

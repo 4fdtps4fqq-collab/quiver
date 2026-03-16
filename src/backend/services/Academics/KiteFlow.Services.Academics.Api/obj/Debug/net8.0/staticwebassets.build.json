@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "bgw4+y6zIDY6nBSA8g66OcY4MV0xOabU5XnmwPsRpRM=",
+  "Source": "KiteFlow.Services.Academics.Api",
+  "BasePath": "_content/KiteFlow.Services.Academics.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Npgsql">
+      <HintPath>..\..\src\backend\services\Identity\KiteFlow.Services.Identity.Api\bin\Debug\net8.0\Npgsql.dll</HintPath>
+    </Reference>
+    <Reference Include="BCrypt.Net-Next">
+      <HintPath>..\..\src\backend\services\Identity\KiteFlow.Services.Identity.Api\bin\Debug\net8.0\BCrypt.Net-Next.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

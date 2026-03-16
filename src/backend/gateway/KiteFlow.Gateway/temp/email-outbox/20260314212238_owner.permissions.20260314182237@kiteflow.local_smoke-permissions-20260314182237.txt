@@ -1,0 +1,12 @@
+﻿Olá, Owner Permissoes.
+
+Sua escola "Smoke Permissoes 20260314182237" foi criada na plataforma Quiver.
+Use os dados abaixo para acessar pela primeira vez:
+
+URL: http://localhost:5174/login
+E-mail: owner.permissions.20260314182237@kiteflow.local
+Senha temporária: X4E$xCdyodP3
+
+No primeiro acesso, a troca da senha será obrigatória.
+
+Se você não esperava este e-mail, fale com o administrador da plataforma.

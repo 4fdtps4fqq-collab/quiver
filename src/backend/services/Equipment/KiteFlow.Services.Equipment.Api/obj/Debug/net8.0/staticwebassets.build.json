@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "qRatHa3muhaTDj2nxFv0lahKdJiy74FiLnmnk7Uvm7U=",
+  "Source": "KiteFlow.Services.Equipment.Api",
+  "BasePath": "_content/KiteFlow.Services.Equipment.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\KiteFlow.Gateway.props" />
+</Project>

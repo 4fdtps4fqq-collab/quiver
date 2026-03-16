@@ -1,0 +1,27 @@
+[
+  {
+    "Name": "identity",
+    "Pid": 28432,
+    "Workdir": "C:\\Users\\filip\\Documents\\Kiteflow\\KiteFlow\\src\\backend\\services\\Identity\\KiteFlow.Services.Identity.Api"
+  },
+  {
+    "Name": "schools",
+    "Pid": 27356,
+    "Workdir": "C:\\Users\\filip\\Documents\\Kiteflow\\KiteFlow\\src\\backend\\services\\Schools\\KiteFlow.Services.Schools.Api"
+  },
+  {
+    "Name": "academics",
+    "Pid": 16212,
+    "Workdir": "C:\\Users\\filip\\Documents\\Kiteflow\\KiteFlow\\src\\backend\\services\\Academics\\KiteFlow.Services.Academics.Api"
+  },
+  {
+    "Name": "gateway",
+    "Pid": 25608,
+    "Workdir": "C:\\Users\\filip\\Documents\\Kiteflow\\KiteFlow\\src\\backend\\gateway\\KiteFlow.Gateway"
+  },
+  {
+    "Name": "frontend-static",
+    "Pid": 28560,
+    "Workdir": "C:\\Users\\filip\\Documents\\Kiteflow\\KiteFlow\\src\\frontend\\app"
+  }
+]

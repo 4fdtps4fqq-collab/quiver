@@ -1,0 +1,6 @@
+@KiteFlow.Services.Academics.Api_HostAddress = http://localhost:5181
+
+GET {{KiteFlow.Services.Academics.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,37 @@
+Usando as configurações de inicialização de C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Reporting\KiteFlow.Services.Reporting.Api\Properties\launchSettings.json...
+17:55:35 info: Microsoft.Hosting.Lifetime[14] Now listening on: http://localhost:7006
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Application started. Press Ctrl+C to shut down.
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Hosting environment: Development
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Reporting\KiteFlow.Services.Reporting.Api
+17:57:15 info: System.Net.Http.HttpClient.academics.LogicalHandler[100] Start processing HTTP request GET http://localhost:7003/api/v1/academics/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:15 info: System.Net.Http.HttpClient.academics.ClientHandler[100] Sending HTTP request GET http://localhost:7003/api/v1/academics/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:16 info: System.Net.Http.HttpClient.academics.ClientHandler[101] Received HTTP response headers after 484.4943ms - 200
+17:57:16 info: System.Net.Http.HttpClient.academics.LogicalHandler[101] End processing HTTP request after 493.0574ms - 200
+17:57:16 info: System.Net.Http.HttpClient.equipment.LogicalHandler[100] Start processing HTTP request GET http://localhost:7004/api/v1/equipment/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:16 info: System.Net.Http.HttpClient.equipment.ClientHandler[100] Sending HTTP request GET http://localhost:7004/api/v1/equipment/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[101] Received HTTP response headers after 951.6158ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[101] End processing HTTP request after 951.7387ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[100] Start processing HTTP request GET http://localhost:7004/api/v1/maintenance/alerts
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[100] Sending HTTP request GET http://localhost:7004/api/v1/maintenance/alerts
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[101] Received HTTP response headers after 62.4739ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[101] End processing HTTP request after 62.5664ms - 200
+17:57:17 info: System.Net.Http.HttpClient.finance.LogicalHandler[100] Start processing HTTP request GET http://localhost:7005/api/v1/finance/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.finance.ClientHandler[100] Sending HTTP request GET http://localhost:7005/api/v1/finance/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.finance.ClientHandler[101] Received HTTP response headers after 524.286ms - 200
+17:57:17 info: System.Net.Http.HttpClient.finance.LogicalHandler[101] End processing HTTP request after 524.3839ms - 200
+17:57:17 info: System.Net.Http.HttpClient.academics.LogicalHandler[100] Start processing HTTP request GET http://localhost:7003/api/v1/academics/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.academics.ClientHandler[100] Sending HTTP request GET http://localhost:7003/api/v1/academics/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.academics.ClientHandler[101] Received HTTP response headers after 16.5515ms - 200
+17:57:17 info: System.Net.Http.HttpClient.academics.LogicalHandler[101] End processing HTTP request after 16.7129ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[100] Start processing HTTP request GET http://localhost:7004/api/v1/equipment/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[100] Sending HTTP request GET http://localhost:7004/api/v1/equipment/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[101] Received HTTP response headers after 29.382ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[101] End processing HTTP request after 29.4773ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[100] Start processing HTTP request GET http://localhost:7004/api/v1/maintenance/alerts
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[100] Sending HTTP request GET http://localhost:7004/api/v1/maintenance/alerts
+17:57:17 info: System.Net.Http.HttpClient.equipment.ClientHandler[101] Received HTTP response headers after 3.753ms - 200
+17:57:17 info: System.Net.Http.HttpClient.equipment.LogicalHandler[101] End processing HTTP request after 3.8282ms - 200
+17:57:17 info: System.Net.Http.HttpClient.finance.LogicalHandler[100] Start processing HTTP request GET http://localhost:7005/api/v1/finance/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.finance.ClientHandler[100] Sending HTTP request GET http://localhost:7005/api/v1/finance/overview?fromUtc=2026-03-02T03%3A00%3A00.0000000Z&toUtc=2026-03-15T20%3A57%3A00.0000000Z
+17:57:17 info: System.Net.Http.HttpClient.finance.ClientHandler[101] Received HTTP response headers after 68.0824ms - 200
+17:57:17 info: System.Net.Http.HttpClient.finance.LogicalHandler[101] End processing HTTP request after 68.1844ms - 200

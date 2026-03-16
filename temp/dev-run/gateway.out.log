@@ -1,0 +1,48 @@
+Usando as configurações de inicialização de C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\gateway\KiteFlow.Gateway\Properties\launchSettings.json...
+17:55:35 info: Yarp.ReverseProxy.Configuration.ConfigProvider.ConfigurationConfigProvider[1] Loading proxy data from config.
+17:55:35 info: Microsoft.Hosting.Lifetime[14] Now listening on: http://localhost:7000
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Application started. Press Ctrl+C to shut down.
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Hosting environment: Development
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\gateway\KiteFlow.Gateway
+17:57:13 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7001/api/v1/auth/login HTTP/2 RequestVersionOrLower 
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7001/api/v1/auth/me HTTP/2 RequestVersionOrLower 
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 59.9022ms - 200
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 67.5558ms - 200
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 68.6367ms - 200
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 71.5082ms - 200
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7002/api/v1/schools/current HTTP/2 RequestVersionOrLower 
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7002/api/v1/schools/me HTTP/2 RequestVersionOrLower 
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:15 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 3.7461ms - 200
+17:57:15 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 3.8712ms - 200
+17:57:15 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7006/api/v1/reports/dashboard?fromUtc=2026-03-02T03%3A00%3A00.000Z&toUtc=2026-03-15T20%3A57%3A00.000Z HTTP/2 RequestVersionOrLower 
+17:57:17 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:17 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:17 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/internal/schools/9852e978-b9e0-435f-8e5d-ed629ecb45ac/access
+17:57:17 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 4.3192ms - 200
+17:57:17 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 4.4181ms - 200
+17:57:17 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7006/api/v1/reports/dashboard?fromUtc=2026-03-02T03%3A00%3A00.000Z&toUtc=2026-03-15T20%3A57%3A00.000Z HTTP/2 RequestVersionOrLower 
+17:57:17 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:57:18 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7001/api/v1/auth/logout HTTP/2 RequestVersionOrLower 
+17:57:18 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:58:20 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7001/api/v1/auth/login HTTP/2 RequestVersionOrLower 
+17:58:21 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:58:21 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9] Proxying to http://localhost:7001/api/v1/auth/me HTTP/2 RequestVersionOrLower 
+17:58:21 info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56] Received HTTP/1.1 response 200.
+17:58:21 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/system/schools
+17:58:21 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/system/schools
+17:58:21 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 35.4872ms - 200
+17:58:21 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 35.6044ms - 200
+17:58:21 info: System.Net.Http.HttpClient.schools.LogicalHandler[100] Start processing HTTP request GET http://localhost:7002/api/v1/system/schools
+17:58:21 info: System.Net.Http.HttpClient.schools.ClientHandler[100] Sending HTTP request GET http://localhost:7002/api/v1/system/schools
+17:58:21 info: System.Net.Http.HttpClient.schools.ClientHandler[101] Received HTTP response headers after 6.3786ms - 200
+17:58:21 info: System.Net.Http.HttpClient.schools.LogicalHandler[101] End processing HTTP request after 6.4689ms - 200

@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --q-navy: #244b84;
+  --q-teal: #63dcc6;
+  --q-aqua: #1da4d3;
+  --q-bg: #EAF3F9;
+  --q-surface: #F7FBFE;
+  --q-surface-2: #E4EEF5;
+  --q-text: #1b4578;
+  --q-text-2: #416280;
+  --q-muted: #6F8899;
+  --q-border: #D2E0EB;
+  --q-divider: #C3D5E3;
+  --q-success: #2ED4A7;
+  --q-success-bg: #E6FBF5;
+  --q-info: #1FB6C9;
+  --q-info-bg: #E7F8FB;
+  --q-warning: #F2C94C;
+  --q-warning-bg: #FFF7DB;
+  --q-danger: #EB5757;
+  --q-danger-bg: #FFE3E3;
+  --q-grad-brand: linear-gradient(90deg, #63dcc6 0%, #1da4d3 52%, #244b84 100%);
+  --q-grad-ocean: linear-gradient(180deg, #DDEDF8 0%, #CDE8E6 45%, #E5F1F8 100%);
+  --q-brand-wordmark: #244b84;
+  --q-brand-primary: #63dcc6;
+  --q-brand-primary-soft: #7ce6d1;
+  --q-brand-secondary: #1da4d3;
+  --app-bg: var(--q-bg);
+  --glow-primary: rgba(29, 164, 211, 0.22);
+  --glow-secondary: rgba(99, 220, 198, 0.18);
+  --glow-tertiary: rgba(36, 75, 132, 0.14);
+  --app-shell: rgba(247, 251, 254, 0.88);
+  --app-shell-strong: rgba(250, 253, 255, 0.96);
+  --app-soft-surface: rgba(228, 238, 245, 0.94);
+  --app-shadow: 0 24px 80px rgba(36, 75, 132, 0.16);
+  --app-shadow-soft: 0 18px 50px rgba(36, 75, 132, 0.12);
+  font-family: "Space Grotesk", "Bahnschrift", "Segoe UI", sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--q-text);
+  background:
+    radial-gradient(circle at top left, rgba(29, 164, 211, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(99, 220, 198, 0.14), transparent 26%),
+    var(--q-grad-ocean);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(29, 164, 211, 0.18);
+  color: var(--q-text);
+}

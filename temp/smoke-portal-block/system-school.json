@@ -1,0 +1,15 @@
+﻿{
+    "cancellationWindowHours":  24,
+    "ownerEmail":  "owner.block.20260314171909@quiver.local",
+    "legalName":  "Escola Bloqueio 20260314171909 LTDA",
+    "ownerPhone":  "(27) 99999-0000",
+    "ownerFullName":  "Owner Bloqueio",
+    "displayName":  "Escola Bloqueio 20260314171909",
+    "ownerPassword":  "Owner123!",
+    "themeAccent":  "#2ED4A7",
+    "slug":  "escola-bloqueio-20260314171909",
+    "timezone":  "America/Sao_Paulo",
+    "themePrimary":  "#0B3C5D",
+    "bookingLeadTimeMinutes":  60,
+    "currencyCode":  "BRL"
+}

@@ -1,0 +1,15 @@
+{
+  "displayName": "Escola Teste 20260314171453",
+  "ownerPhone": "(27) 99999-0000",
+  "bookingLeadTimeMinutes": 60,
+  "currencyCode": "BRL",
+  "timezone": "America/Sao_Paulo",
+  "ownerPassword": "Owner123!",
+  "slug": "escola-teste-20260314171453",
+  "ownerEmail": "owner.test.20260314171453@quiver.local",
+  "themeAccent": "#2ED4A7",
+  "themePrimary": "#0B3C5D",
+  "cancellationWindowHours": 24,
+  "ownerFullName": "Owner Teste",
+  "legalName": "Escola Teste 20260314171453 LTDA"
+}

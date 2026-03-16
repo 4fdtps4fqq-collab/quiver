@@ -1,0 +1,12 @@
+﻿Olá, Owner B1773521030.
+
+Sua escola "Escola SaaS B1773521030" foi criada na plataforma Quiver.
+Use os dados abaixo para acessar pela primeira vez:
+
+URL: http://localhost:5174/login
+E-mail: owner.b.1773521030@quiver.local
+Senha temporária: e$4pgt#M*2TU
+
+No primeiro acesso, a troca da senha será obrigatória.
+
+Se você não esperava este e-mail, fale com o administrador da plataforma.

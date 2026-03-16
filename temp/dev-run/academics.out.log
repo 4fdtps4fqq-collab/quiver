@@ -1,0 +1,164 @@
+Usando as configurações de inicialização de C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Academics\KiteFlow.Services.Academics.Api\Properties\launchSettings.json...
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (57ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (6ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT "MigrationId", "ProductVersion" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT "MigrationId", "ProductVersion" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
+17:55:35 info: Microsoft.EntityFrameworkCore.Migrations[20405] No migrations were applied. The database is already up to date.
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (11ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'courses' AND column_name = 'TotalLessons'
+    ) THEN
+        UPDATE courses
+        SET "TotalMinutes" = COALESCE("TotalMinutes", GREATEST("TotalLessons", 0) * 60)
+        WHERE "TotalMinutes" IS NULL;
+    END IF;
+END $$;
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (6ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'enrollments' AND column_name = 'IncludedLessonsSnapshot'
+    ) THEN
+        UPDATE enrollments
+        SET "IncludedMinutesSnapshot" = COALESCE("IncludedMinutesSnapshot", GREATEST("IncludedLessonsSnapshot", 0) * 60)
+        WHERE "IncludedMinutesSnapshot" IS NULL;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'enrollments' AND column_name = 'UsedLessons'
+    ) THEN
+        UPDATE enrollments
+        SET "UsedMinutes" = COALESCE("UsedMinutes", GREATEST("UsedLessons", 0) * 60)
+        WHERE "UsedMinutes" IS NULL;
+    END IF;
+END $$;
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'enrollment_balance_ledger' AND column_name = 'DeltaLessons'
+    ) THEN
+        UPDATE enrollment_balance_ledger
+        SET "DeltaMinutes" = COALESCE("DeltaMinutes", "DeltaLessons" * 60)
+        WHERE "DeltaMinutes" IS NULL;
+    END IF;
+END $$;
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] DROP INDEX IF EXISTS "IX_students_SchoolId_IdentityUserId";
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] CREATE UNIQUE INDEX IF NOT EXISTS "IX_students_SchoolId_IdentityUserId_UQ"
+ON students ("SchoolId", "IdentityUserId")
+WHERE "IdentityUserId" IS NOT NULL;
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] ALTER TABLE instructors
+ADD COLUMN IF NOT EXISTS "AvailabilityJson" character varying(4000) NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "OperationalConfirmedAtUtc" timestamp with time zone NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "OperationalConfirmedByUserId" uuid NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "OperationalConfirmationNote" character varying(1000) NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "NoShowMarkedAtUtc" timestamp with time zone NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "NoShowMarkedByUserId" uuid NULL;
+
+ALTER TABLE lessons
+ADD COLUMN IF NOT EXISTS "NoShowNote" character varying(1000) NULL;
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] CREATE TABLE IF NOT EXISTS schedule_blocks
+(
+    "Id" uuid NOT NULL,
+    "SchoolId" uuid NOT NULL,
+    "CreatedAtUtc" timestamp with time zone NOT NULL,
+    "Scope" integer NOT NULL,
+    "InstructorId" uuid NULL,
+    "Title" character varying(160) NOT NULL,
+    "Notes" character varying(1000) NULL,
+    "StartAtUtc" timestamp with time zone NOT NULL,
+    "EndAtUtc" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_schedule_blocks" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_schedule_blocks_instructors_InstructorId" FOREIGN KEY ("InstructorId") REFERENCES instructors ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS "IX_schedule_blocks_SchoolId_StartAtUtc_EndAtUtc"
+ON schedule_blocks ("SchoolId", "StartAtUtc", "EndAtUtc");
+
+CREATE INDEX IF NOT EXISTS "IX_schedule_blocks_SchoolId_InstructorId_StartAtUtc_EndAtUtc"
+ON schedule_blocks ("SchoolId", "InstructorId", "StartAtUtc", "EndAtUtc");
+17:55:36 info: Microsoft.Hosting.Lifetime[14] Now listening on: http://localhost:7003
+17:55:36 info: Microsoft.Hosting.Lifetime[0] Application started. Press Ctrl+C to shut down.
+17:55:36 info: Microsoft.Hosting.Lifetime[0] Hosting environment: Development
+17:55:36 info: Microsoft.Hosting.Lifetime[0] Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Academics\KiteFlow.Services.Academics.Api
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (8ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM enrollments AS e WHERE e."SchoolId" = @__schoolId_0 AND e."Status" = 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (3ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId", t."FullName", l."StartAtUtc", l."DurationMinutes", t."HourlyRate" FROM lessons AS l INNER JOIN (     SELECT i."Id", i."FullName", i."HourlyRate"     FROM instructors AS i     WHERE i."SchoolId" = @__schoolId_0 ) AS t ON l."InstructorId" = t."Id" WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."Status", count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."Status"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId" AS "instructorId", count(*)::int AS total, count(*) FILTER (WHERE l."Status" = 3)::int AS realized, count(*) FILTER (WHERE l."Status" = 7)::int AS "noShow", count(*) FILTER (WHERE l."Status" IN (5, 6))::int AS cancelled, count(*) FILTER (WHERE l."Status" = 4)::int AS rescheduled FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."InstructorId"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT t."Key" AS day, count(*)::int AS "totalLessons", count(*) FILTER (WHERE t."Status" = 3)::int AS "realizedLessons", count(*) FILTER (WHERE t."Status" IN (5, 6, 7))::int AS "cancelledLessons" FROM (     SELECT l."Status", date_trunc('day', l."StartAtUtc", 'UTC') AS "Key"     FROM lessons AS l     WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 ) AS t GROUP BY t."Key" ORDER BY t."Key"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT i."Id", i."FullName" FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM students AS s WHERE s."SchoolId" = @__schoolId_0 AND s."IsActive"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0 AND i."IsActive"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM courses AS c WHERE c."SchoolId" = @__schoolId_0 AND c."IsActive"
+17:57:16 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__todayStart_1='?' (DbType = DateTime), @__tomorrowStart_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__todayStart_1 AND l."StartAtUtc" < @__tomorrowStart_2
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM enrollments AS e WHERE e."SchoolId" = @__schoolId_0 AND e."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId", t."FullName", l."StartAtUtc", l."DurationMinutes", t."HourlyRate" FROM lessons AS l INNER JOIN (     SELECT i."Id", i."FullName", i."HourlyRate"     FROM instructors AS i     WHERE i."SchoolId" = @__schoolId_0 ) AS t ON l."InstructorId" = t."Id" WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."Status", count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."Status"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId" AS "instructorId", count(*)::int AS total, count(*) FILTER (WHERE l."Status" = 3)::int AS realized, count(*) FILTER (WHERE l."Status" = 7)::int AS "noShow", count(*) FILTER (WHERE l."Status" IN (5, 6))::int AS cancelled, count(*) FILTER (WHERE l."Status" = 4)::int AS rescheduled FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."InstructorId"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT t."Key" AS day, count(*)::int AS "totalLessons", count(*) FILTER (WHERE t."Status" = 3)::int AS "realizedLessons", count(*) FILTER (WHERE t."Status" IN (5, 6, 7))::int AS "cancelledLessons" FROM (     SELECT l."Status", date_trunc('day', l."StartAtUtc", 'UTC') AS "Key"     FROM lessons AS l     WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 ) AS t GROUP BY t."Key" ORDER BY t."Key"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT i."Id", i."FullName" FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM students AS s WHERE s."SchoolId" = @__schoolId_0 AND s."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0 AND i."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM courses AS c WHERE c."SchoolId" = @__schoolId_0 AND c."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__todayStart_1='?' (DbType = DateTime), @__tomorrowStart_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__todayStart_1 AND l."StartAtUtc" < @__tomorrowStart_2
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM enrollments AS e WHERE e."SchoolId" = @__schoolId_0 AND e."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId", t."FullName", l."StartAtUtc", l."DurationMinutes", t."HourlyRate" FROM lessons AS l INNER JOIN (     SELECT i."Id", i."FullName", i."HourlyRate"     FROM instructors AS i     WHERE i."SchoolId" = @__schoolId_0 ) AS t ON l."InstructorId" = t."Id" WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."Status", count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."Status"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId" AS "instructorId", count(*)::int AS total, count(*) FILTER (WHERE l."Status" = 3)::int AS realized, count(*) FILTER (WHERE l."Status" = 7)::int AS "noShow", count(*) FILTER (WHERE l."Status" IN (5, 6))::int AS cancelled, count(*) FILTER (WHERE l."Status" = 4)::int AS rescheduled FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."InstructorId"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT t."Key" AS day, count(*)::int AS "totalLessons", count(*) FILTER (WHERE t."Status" = 3)::int AS "realizedLessons", count(*) FILTER (WHERE t."Status" IN (5, 6, 7))::int AS "cancelledLessons" FROM (     SELECT l."Status", date_trunc('day', l."StartAtUtc", 'UTC') AS "Key"     FROM lessons AS l     WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 ) AS t GROUP BY t."Key" ORDER BY t."Key"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT i."Id", i."FullName" FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM students AS s WHERE s."SchoolId" = @__schoolId_0 AND s."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0 AND i."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM courses AS c WHERE c."SchoolId" = @__schoolId_0 AND c."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__todayStart_1='?' (DbType = DateTime), @__tomorrowStart_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__todayStart_1 AND l."StartAtUtc" < @__tomorrowStart_2
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM enrollments AS e WHERE e."SchoolId" = @__schoolId_0 AND e."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId", t."FullName", l."StartAtUtc", l."DurationMinutes", t."HourlyRate" FROM lessons AS l INNER JOIN (     SELECT i."Id", i."FullName", i."HourlyRate"     FROM instructors AS i     WHERE i."SchoolId" = @__schoolId_0 ) AS t ON l."InstructorId" = t."Id" WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 AND l."Status" = 3
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."Status", count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."Status"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT l."InstructorId" AS "instructorId", count(*)::int AS total, count(*) FILTER (WHERE l."Status" = 3)::int AS realized, count(*) FILTER (WHERE l."Status" = 7)::int AS "noShow", count(*) FILTER (WHERE l."Status" IN (5, 6))::int AS cancelled, count(*) FILTER (WHERE l."Status" = 4)::int AS rescheduled FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 GROUP BY l."InstructorId"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__fromUtc_Value_1='?' (DbType = DateTime), @__toUtc_Value_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT t."Key" AS day, count(*)::int AS "totalLessons", count(*) FILTER (WHERE t."Status" = 3)::int AS "realizedLessons", count(*) FILTER (WHERE t."Status" IN (5, 6, 7))::int AS "cancelledLessons" FROM (     SELECT l."Status", date_trunc('day', l."StartAtUtc", 'UTC') AS "Key"     FROM lessons AS l     WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__fromUtc_Value_1 AND l."StartAtUtc" <= @__toUtc_Value_2 ) AS t GROUP BY t."Key" ORDER BY t."Key"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT i."Id", i."FullName" FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM students AS s WHERE s."SchoolId" = @__schoolId_0 AND s."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM instructors AS i WHERE i."SchoolId" = @__schoolId_0 AND i."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM courses AS c WHERE c."SchoolId" = @__schoolId_0 AND c."IsActive"
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__todayStart_1='?' (DbType = DateTime), @__tomorrowStart_2='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30'] SELECT count(*)::int FROM lessons AS l WHERE l."SchoolId" = @__schoolId_0 AND l."StartAtUtc" >= @__todayStart_1 AND l."StartAtUtc" < @__tomorrowStart_2

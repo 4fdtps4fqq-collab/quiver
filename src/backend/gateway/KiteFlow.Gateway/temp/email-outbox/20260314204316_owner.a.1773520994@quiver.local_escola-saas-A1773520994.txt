@@ -1,0 +1,12 @@
+﻿Olá, Owner A1773520994.
+
+Sua escola "Escola SaaS A1773520994" foi criada na plataforma Quiver.
+Use os dados abaixo para acessar pela primeira vez:
+
+URL: http://localhost:5174/login
+E-mail: owner.a.1773520994@quiver.local
+Senha temporária: UY$2G$hTVfyi
+
+No primeiro acesso, a troca da senha será obrigatória.
+
+Se você não esperava este e-mail, fale com o administrador da plataforma.

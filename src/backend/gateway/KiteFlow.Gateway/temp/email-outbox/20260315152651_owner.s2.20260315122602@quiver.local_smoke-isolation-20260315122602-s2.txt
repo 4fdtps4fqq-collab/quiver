@@ -1,0 +1,12 @@
+﻿Olá, Owner Escola 2.
+
+Sua escola "Smoke Isolation Escola 2" foi criada na plataforma Quiver.
+Use os dados abaixo para acessar pela primeira vez:
+
+URL: http://localhost:5174/login
+E-mail: owner.s2.20260315122602@quiver.local
+Senha temporária: eEGn$n$nr59%
+
+No primeiro acesso, a troca da senha será obrigatória.
+
+Se você não esperava este e-mail, fale com o administrador da plataforma.

@@ -1,0 +1,12 @@
+﻿Olá, Rodrigo Bernardo.
+
+Sua escola "RB Kite Experience" foi criada na plataforma Quiver.
+Use os dados abaixo para acessar pela primeira vez:
+
+URL: http://localhost:5174/login
+E-mail: filipe.s.nascimento@icloud.com
+Senha temporária: jcG2b9Nm67J*
+
+No primeiro acesso, a troca da senha será obrigatória.
+
+Se você não esperava este e-mail, fale com o administrador da plataforma.

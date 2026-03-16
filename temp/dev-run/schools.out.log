@@ -1,0 +1,126 @@
+Usando as configurações de inicialização de C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Schools\KiteFlow.Services.Schools.Api\Properties\launchSettings.json...
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (48ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT "MigrationId", "ProductVersion" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND
+          c.relname='__EFMigrationsHistory'
+)
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT "MigrationId", "ProductVersion" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";
+17:55:35 info: Microsoft.EntityFrameworkCore.Migrations[20405] No migrations were applied. The database is already up to date.
+17:55:35 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (8ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "LogoDataUrl" text NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "Cnpj" character varying(18) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "BaseBeachName" character varying(160) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "BaseLatitude" double precision NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "BaseLongitude" double precision NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "PostalCode" character varying(9) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "Street" character varying(200) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "StreetNumber" character varying(20) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "AddressComplement" character varying(120) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "Neighborhood" character varying(120) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "City" character varying(120) NULL;
+
+ALTER TABLE schools
+ADD COLUMN IF NOT EXISTS "State" character varying(2) NULL;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "RescheduleWindowHours" integer NOT NULL DEFAULT 24;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "AttendanceConfirmationLeadMinutes" integer NOT NULL DEFAULT 180;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "LessonReminderLeadHours" integer NOT NULL DEFAULT 18;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "PortalNotificationsEnabled" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "InstructorBufferMinutes" integer NOT NULL DEFAULT 15;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "NoShowGraceMinutes" integer NOT NULL DEFAULT 15;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "NoShowConsumesCourseMinutes" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "NoShowChargesSingleLesson" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "AutoCreateEnrollmentRevenue" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE school_settings
+ADD COLUMN IF NOT EXISTS "AutoCreateSingleLessonRevenue" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "Cpf" character varying(14) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "PostalCode" character varying(9) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "Street" character varying(200) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "StreetNumber" character varying(20) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "AddressComplement" character varying(120) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "Neighborhood" character varying(120) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "City" character varying(120) NULL;
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS "State" character varying(2) NULL;
+17:55:35 info: Microsoft.Hosting.Lifetime[14] Now listening on: http://localhost:7002
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Application started. Press Ctrl+C to shut down.
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Hosting environment: Development
+17:55:35 info: Microsoft.Hosting.Lifetime[0] Content root path: C:\Users\filip\Documents\Kiteflow\KiteFlow\src\backend\services\Schools\KiteFlow.Services.Schools.Api
+17:57:14 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (5ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."DisplayName", s."Status", s."Status" = 2 FROM schools AS s WHERE s."Id" = @__id_0 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."DisplayName", s."Status", s."Status" = 2 FROM schools AS s WHERE s."Id" = @__id_0 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (2ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."DisplayName", s."Status", s."Status" = 2 FROM schools AS s WHERE s."Id" = @__id_0 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid), @__identityUserId_1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT u."Id", u."IdentityUserId", u."FullName", u."Phone", u."AvatarUrl", u."IsActive" FROM user_profiles AS u WHERE u."SchoolId" = @__schoolId_0 AND u."IdentityUserId" = @__identityUserId_1 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (3ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."AddressComplement", s."BaseBeachName", s."BaseLatitude", s."BaseLongitude", s."City", s."Cnpj", s."CreatedAtUtc", s."CurrencyCode", s."DisplayName", s."LegalName", s."LogoDataUrl", s."Neighborhood", s."PostalCode", s."Slug", s."State", s."Status", s."Street", s."StreetNumber", s."Timezone" FROM schools AS s WHERE s."Id" = @__schoolId_0 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."AttendanceConfirmationLeadMinutes", s."AutoCreateEnrollmentRevenue", s."AutoCreateSingleLessonRevenue", s."BookingLeadTimeMinutes", s."CancellationWindowHours", s."CreatedAtUtc", s."InstructorBufferMinutes", s."LessonReminderLeadHours", s."NoShowChargesSingleLesson", s."NoShowConsumesCourseMinutes", s."NoShowGraceMinutes", s."PortalNotificationsEnabled", s."RescheduleWindowHours", s."SchoolId", s."ThemeAccent", s."ThemePrimary" FROM school_settings AS s WHERE s."SchoolId" = @__schoolId_0 LIMIT 1
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__schoolId_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT u."Id", u."IdentityUserId", u."FullName", u."Phone", u."IsActive" FROM user_profiles AS u WHERE u."SchoolId" = @__schoolId_0 ORDER BY u."FullName"
+17:57:15 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."DisplayName", s."Status", s."Status" = 2 FROM schools AS s WHERE s."Id" = @__id_0 LIMIT 1
+17:57:17 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (1ms) [Parameters=[@__id_0='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."DisplayName", s."Status", s."Status" = 2 FROM schools AS s WHERE s."Id" = @__id_0 LIMIT 1
+17:58:21 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (6ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."LegalName", s."DisplayName", s."Slug", s."LogoDataUrl", s."BaseBeachName", s."BaseLatitude", s."BaseLongitude", s."Status", s."Timezone", s."CurrencyCode", s."CreatedAtUtc", (     SELECT count(*)::int     FROM user_profiles AS u     WHERE u."SchoolId" = s."Id"), (     SELECT u0."FullName"     FROM user_profiles AS u0     WHERE u0."SchoolId" = s."Id"     ORDER BY u0."CreatedAtUtc"     LIMIT 1) FROM schools AS s ORDER BY s."DisplayName"
+17:58:21 info: Microsoft.EntityFrameworkCore.Database.Command[20101] Executed DbCommand (3ms) [Parameters=[], CommandType='Text', CommandTimeout='30'] SELECT s."Id", s."LegalName", s."DisplayName", s."Slug", s."LogoDataUrl", s."BaseBeachName", s."BaseLatitude", s."BaseLongitude", s."Status", s."Timezone", s."CurrencyCode", s."CreatedAtUtc", (     SELECT count(*)::int     FROM user_profiles AS u     WHERE u."SchoolId" = s."Id"), (     SELECT u0."FullName"     FROM user_profiles AS u0     WHERE u0."SchoolId" = s."Id"     ORDER BY u0."CreatedAtUtc"     LIMIT 1) FROM schools AS s ORDER BY s."DisplayName"
