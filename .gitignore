@@ -1,0 +1,12 @@
+bin/
+obj/
+
+*.tsbuildinfo
+*.cache.json
+
+temp/dev-run/
+temp/*build-check/
+temp/smoke-run/
+temp/smoke-run-inline/
+
+src/backend/gateway/KiteFlow.Gateway/bin/Debug/net8.0/temp/

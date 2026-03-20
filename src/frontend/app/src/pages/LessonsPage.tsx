@@ -8,19 +8,25 @@ import {
   createLesson,
   createScheduleBlock,
   deleteScheduleBlock,
+  getEquipmentAvailability,
   getAssistedLessonSuggestions,
   getEnrollments,
   getInstructors,
+  getLessonEquipment,
   getLessons,
   getScheduleBlocks,
   getStudents,
   markLessonNoShow,
   operationalConfirmLesson,
+  releaseLessonEquipmentReservation,
+  reserveLessonEquipment,
   updateLesson,
   type AssistedLessonSuggestion,
+  type EquipmentItem,
   type Enrollment,
   type Instructor,
   type Lesson,
+  type LessonEquipmentState,
   type ScheduleBlock,
   type Student
 } from "../lib/platform-api";
@@ -55,12 +61,26 @@ export function LessonsPage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isBatchRescheduling, setIsBatchRescheduling] = useState(false);
   const [isSavingBlock, setIsSavingBlock] = useState(false);
+  const [isSavingReservation, setIsSavingReservation] = useState(false);
+  const [lessonEquipment, setLessonEquipment] = useState<LessonEquipmentState | null>(null);
+  const [equipmentAvailability, setEquipmentAvailability] = useState<EquipmentItem[]>([]);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const selectedLesson = useMemo(() => lessons.find((item) => item.id === selectedLessonId) ?? null, [lessons, selectedLessonId]);
   const availableEnrollments = useMemo(() => enrollments.filter((item) => item.studentId === form.studentId && item.status === "Active"), [enrollments, form.studentId]);
 
   useEffect(() => { if (token) { void loadData(token); } }, [token]);
+  useEffect(() => {
+    if (!token || !selectedLesson) {
+      setLessonEquipment(null);
+      setEquipmentAvailability([]);
+      setSelectedEquipmentIds([]);
+      return;
+    }
+
+    void loadLessonEquipmentState(token, selectedLesson);
+  }, [selectedLesson, token]);
 
   async function loadData(currentToken: string) {
     try {
@@ -81,6 +101,26 @@ export function LessonsPage() {
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Não foi possível carregar a agenda.");
     } finally { setIsLoading(false); }
+  }
+
+  async function loadLessonEquipmentState(currentToken: string, lesson: Lesson) {
+    try {
+      const [lessonEquipmentResult, availabilityResult] = await Promise.all([
+        getLessonEquipment(currentToken, lesson.id),
+        getEquipmentAvailability(currentToken, {
+          fromUtc: lesson.startAtUtc,
+          toUtc: addMinutes(lesson.startAtUtc, lesson.durationMinutes)
+        })
+      ]);
+
+      setLessonEquipment(lessonEquipmentResult);
+      setEquipmentAvailability(availabilityResult);
+      setSelectedEquipmentIds(lessonEquipmentResult.reservedItems.map((item) => item.equipmentId));
+    } catch {
+      setLessonEquipment(null);
+      setEquipmentAvailability([]);
+      setSelectedEquipmentIds([]);
+    }
   }
 
   async function handleCreateLesson(event: FormEvent<HTMLFormElement>) {
@@ -134,6 +174,36 @@ export function LessonsPage() {
   async function handleDeleteBlock(blockId: string) {
     if (!token) return;
     try { setError(null); await deleteScheduleBlock(token, blockId); await loadData(token); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : "Não foi possível remover o bloqueio."); }
+  }
+
+  async function handleReserveEquipment() {
+    if (!token || !selectedLesson) return;
+    try {
+      setIsSavingReservation(true);
+      setError(null);
+      await reserveLessonEquipment(token, selectedLesson.id, {
+        equipmentIds: selectedEquipmentIds
+      });
+      await loadLessonEquipmentState(token, selectedLesson);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível reservar os equipamentos.");
+    } finally {
+      setIsSavingReservation(false);
+    }
+  }
+
+  async function handleReleaseEquipmentReservation() {
+    if (!token || !selectedLesson) return;
+    try {
+      setIsSavingReservation(true);
+      setError(null);
+      await releaseLessonEquipmentReservation(token, selectedLesson.id);
+      await loadLessonEquipmentState(token, selectedLesson);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível liberar a reserva.");
+    } finally {
+      setIsSavingReservation(false);
+    }
   }
 
   return (
@@ -195,6 +265,83 @@ export function LessonsPage() {
           <div className="space-y-3">{blocks.length === 0 ? <div className="rounded-[22px] border border-dashed border-[var(--q-divider)] px-4 py-5 text-sm text-[var(--q-text-2)]">Nenhum bloqueio cadastrado.</div> : blocks.map((block) => <div key={block.id} className="flex items-center justify-between gap-4 rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-4"><div className="space-y-1"><div className="font-medium text-[var(--q-text)]">{block.title}</div><div className="text-sm text-[var(--q-text-2)]">{formatDateTime(block.startAtUtc)} até {formatDateTime(block.endAtUtc)}</div><div className="flex flex-wrap gap-2"><StatusBadge value={block.scope} />{block.instructorName ? <StatusBadge value={block.instructorName} /> : null}</div></div><button className="rounded-full border border-[var(--q-danger)]/25 bg-[var(--q-danger-bg)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[var(--q-danger)]" type="button" onClick={() => handleDeleteBlock(block.id)}>Remover</button></div>)}</div>
         </GlassCard>
       </div>
+
+      <GlassCard title="Reserva prévia de equipamento" description="Antecipe a operação da aula reservando os itens antes do checkout.">
+        {selectedLesson ? (
+          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-4">
+              <div className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
+                <div className="text-sm font-medium text-[var(--q-text)]">Janela da aula</div>
+                <div className="mt-1 text-sm text-[var(--q-text-2)]">
+                  {formatDateTime(selectedLesson.startAtUtc)} · {selectedLesson.durationMinutes} min
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <StatusBadge value={lessonEquipment?.reservation ? "Reserved" : "NotReserved"} />
+                  {lessonEquipment?.checkout ? <StatusBadge value="CheckedOut" /> : null}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {equipmentAvailability.map((item) => (
+                  <label key={item.id} className="flex items-center justify-between gap-4 rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-4">
+                    <div>
+                      <div className="font-medium text-[var(--q-text)]">{item.name}</div>
+                      <div className="mt-1 text-sm text-[var(--q-text-2)]">
+                        {item.type}{item.kitName ? ` · ${item.kitName}` : ""}{item.ownerDisplayName ? ` · ${item.ownerDisplayName}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge value={item.availabilityStatus || "Available"} />
+                      <input
+                        type="checkbox"
+                        checked={selectedEquipmentIds.includes(item.id)}
+                        disabled={item.availabilityStatus === "CheckedOut" || item.availabilityStatus === "MaintenanceBlocked"}
+                        onChange={(event) =>
+                          setSelectedEquipmentIds((current) =>
+                            event.target.checked ? [...current, item.id] : current.filter((value) => value !== item.id))
+                        }
+                      />
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
+                <div className="text-sm font-medium text-[var(--q-text)]">Itens reservados</div>
+                <div className="mt-3 space-y-3">
+                  {lessonEquipment?.reservedItems.length ? lessonEquipment.reservedItems.map((item) => (
+                    <div key={item.id} className="rounded-[18px] border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-3 text-sm text-[var(--q-text)]">
+                      {item.equipmentName} · {item.equipmentType}
+                    </div>
+                  )) : (
+                    <div className="rounded-[18px] border border-dashed border-[var(--q-divider)] px-4 py-4 text-sm text-[var(--q-text-2)]">
+                      Nenhum item reservado para esta aula.
+                    </div>
+                  )}
+                </div>
+                {lessonEquipment?.reservation ? (
+                  <div className="mt-3 text-sm text-[var(--q-text-2)]">
+                    Reserva ativa até {formatDateTime(lessonEquipment.reservation.reservedUntilUtc)}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <button className="rounded-full border border-transparent bg-[var(--q-grad-brand)] px-5 py-3 text-sm font-medium uppercase tracking-[0.2em] text-white" type="button" onClick={handleReserveEquipment} disabled={isSavingReservation || selectedEquipmentIds.length === 0}>
+                  {isSavingReservation ? "Reservando" : "Reservar itens"}
+                </button>
+                <button className="rounded-full border border-[var(--q-border)] bg-[var(--q-surface-2)] px-5 py-3 text-sm font-medium uppercase tracking-[0.2em] text-[var(--q-text)]" type="button" onClick={handleReleaseEquipmentReservation} disabled={isSavingReservation || !lessonEquipment?.reservation}>
+                  Liberar reserva
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-[22px] border border-dashed border-[var(--q-divider)] px-4 py-5 text-sm text-[var(--q-text-2)]">
+            Selecione uma aula para visualizar disponibilidade e reserva prévia de equipamento.
+          </div>
+        )}
+      </GlassCard>
     </div>
   );
 }
@@ -209,3 +356,4 @@ function SelectField({ label, value, onChange, options, disabled = false, requir
 
 function statusToValue(status: string) { return statusOptions.find((item) => item.label === status)?.value ?? "1"; }
 function isSameDay(value: string) { const date = new Date(value); const now = new Date(); return date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); }
+function addMinutes(value: string, minutes: number) { return new Date(new Date(value).getTime() + minutes * 60000).toISOString(); }

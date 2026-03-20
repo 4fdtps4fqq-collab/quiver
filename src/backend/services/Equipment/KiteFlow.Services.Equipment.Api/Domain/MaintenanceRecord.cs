@@ -12,9 +12,15 @@ public sealed class MaintenanceRecord : TenantScopedEntity
 
     public decimal? Cost { get; set; }
 
+    public MaintenanceServiceCategory ServiceCategory { get; set; } = MaintenanceServiceCategory.Preventive;
+
+    public MaintenanceFinancialEffect FinancialEffect { get; set; } = MaintenanceFinancialEffect.None;
+
     public string Description { get; set; } = string.Empty;
 
     public string? PerformedBy { get; set; }
+
+    public string? CounterpartyName { get; set; }
 
     public EquipmentItem? Equipment { get; set; }
 }

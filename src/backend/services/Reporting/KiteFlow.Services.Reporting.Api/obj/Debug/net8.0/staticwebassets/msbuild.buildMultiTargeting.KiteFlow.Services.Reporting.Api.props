@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\KiteFlow.Services.Reporting.Api.props" />
-</Project>

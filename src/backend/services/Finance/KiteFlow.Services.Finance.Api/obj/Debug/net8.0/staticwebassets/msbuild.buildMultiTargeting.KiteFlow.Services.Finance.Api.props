@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\KiteFlow.Services.Finance.Api.props" />
-</Project>

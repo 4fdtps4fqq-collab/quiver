@@ -24,6 +24,7 @@ public sealed class FinanceDbContext : DbContext
         {
             entity.ToTable("expense_entries");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.SourceType).HasMaxLength(100);
             entity.Property(x => x.Category).IsRequired();
             entity.Property(x => x.Amount).HasPrecision(12, 2).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
@@ -31,6 +32,7 @@ public sealed class FinanceDbContext : DbContext
             entity.Property(x => x.OccurredAtUtc).IsRequired();
             entity.Property(x => x.CreatedAtUtc).IsRequired();
             entity.HasIndex(x => new { x.SchoolId, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.SchoolId, x.SourceType, x.SourceId });
         });
 
         modelBuilder.Entity<RevenueEntry>(entity =>

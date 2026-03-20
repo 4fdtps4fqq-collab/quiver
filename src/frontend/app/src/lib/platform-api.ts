@@ -483,6 +483,7 @@ export type EquipmentItem = {
   id: string;
   name: string;
   type: string;
+  category?: string;
   tagCode?: string;
   brand?: string;
   model?: string;
@@ -494,10 +495,24 @@ export type EquipmentItem = {
   isActive: boolean;
   storageId: string;
   storageName: string;
+  ownershipType: string;
+  ownerDisplayName?: string;
+  totalUsageHours?: number;
+  availabilityStatus?: string;
+  reservedLessonId?: string;
+  reservedFromUtc?: string;
+  reservedUntilUtc?: string;
+  reservedLessonLabel?: string;
+  isCheckedOut?: boolean;
+  kitId?: string;
+  kitName?: string;
 };
 
 export type EquipmentHistory = {
-  equipment: EquipmentItem;
+  equipment: EquipmentItem & {
+    kitId?: string;
+    kitName?: string;
+  };
   usage: Array<{
     id: string;
     lessonId?: string;
@@ -513,14 +528,57 @@ export type EquipmentHistory = {
     cost?: number;
     description: string;
     performedBy?: string;
+    serviceCategory: string;
+    financialEffect: string;
+    counterpartyName?: string;
+  }>;
+  reservations: Array<{
+    id: string;
+    lessonId: string;
+    reservedFromUtc: string;
+    reservedUntilUtc: string;
+    notes?: string;
+  }>;
+  lifecycle: {
+    usageMinutes: number;
+    servicesCount: number;
+    reservationsCount: number;
+    maintenanceExpense: number;
+    maintenanceRevenue: number;
+    timeline: Array<{
+      atUtc: string;
+      kind: string;
+      title: string;
+      detail: string;
+    }>;
+  };
+};
+
+export type EquipmentKit = {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  items: Array<{
+    equipmentId: string;
+    name: string;
+    type: string;
   }>;
 };
 
 export type MaintenanceRule = {
   id: string;
   equipmentType: string;
+  planName: string;
+  serviceCategory: string;
   serviceEveryMinutes?: number;
   serviceEveryDays?: number;
+  warningLeadMinutes?: number;
+  criticalLeadMinutes?: number;
+  warningLeadDays?: number;
+  criticalLeadDays?: number;
+  checklist?: string;
+  notes?: string;
   isActive: boolean;
 };
 
@@ -528,11 +586,16 @@ export type MaintenanceRecord = {
   id: string;
   equipmentId: string;
   equipmentName: string;
+  equipmentType: string;
+  equipmentOwnershipType: string;
   serviceDateUtc: string;
   usageMinutesAtService: number;
   cost?: number;
   description: string;
   performedBy?: string;
+  serviceCategory: string;
+  financialEffect: string;
+  counterpartyName?: string;
 };
 
 export type MaintenanceAlert = {
@@ -540,6 +603,9 @@ export type MaintenanceAlert = {
   name: string;
   type: string;
   alertType: string;
+  severity: string;
+  serviceCategory: string;
+  recommendedAction: string;
   remainingMinutes?: number;
   dueDateUtc?: string;
   remainingDays?: number;
@@ -547,7 +613,7 @@ export type MaintenanceAlert = {
 };
 
 export type LessonEquipmentState = {
-  checkout: {
+  checkout?: {
     id: string;
     lessonId: string;
     checkedOutAtUtc: string;
@@ -557,6 +623,20 @@ export type LessonEquipmentState = {
     createdByUserId: string;
     checkedInByUserId?: string;
   };
+  reservation?: {
+    id: string;
+    lessonId: string;
+    reservedFromUtc: string;
+    reservedUntilUtc: string;
+    notes?: string;
+    createdByUserId: string;
+  };
+  reservedItems: Array<{
+    id: string;
+    equipmentId: string;
+    equipmentName: string;
+    equipmentType: string;
+  }>;
   items: Array<{
     id: string;
     equipmentId: string;
@@ -566,6 +646,23 @@ export type LessonEquipmentState = {
     conditionAfter?: string;
     notesBefore?: string;
     notesAfter?: string;
+  }>;
+};
+
+export type MaintenanceSummary = {
+  records: number;
+  expenseAmount: number;
+  revenueAmount: number;
+  byCategory: Array<{
+    category: string;
+    records: number;
+    amount: number;
+  }>;
+  byEquipment: Array<{
+    equipmentId: string;
+    equipmentName: string;
+    records: number;
+    amount: number;
   }>;
 };
 
@@ -1163,11 +1260,14 @@ export function createEquipment(token: string, body: {
   storageId: string;
   name: string;
   type: number;
+  category?: string;
   tagCode?: string;
   brand?: string;
   model?: string;
   sizeLabel?: string;
   currentCondition: number;
+  ownershipType: number;
+  ownerDisplayName?: string;
 }) {
   return apiRequest<{ equipmentId: string }>("/equipment/api/v1/equipment-items", {
     method: "POST",
@@ -1176,9 +1276,29 @@ export function createEquipment(token: string, body: {
   });
 }
 
+export function getEquipmentAvailability(token: string, filters: { fromUtc: string; toUtc: string }) {
+  return apiRequest<EquipmentItem[]>(withQuery("/equipment/api/v1/equipment-items/availability", filters), { token });
+}
+
 export function getEquipmentHistory(token: string, equipmentId: string) {
   return apiRequest<EquipmentHistory>(`/equipment/api/v1/equipment-items/${equipmentId}/history`, {
     token
+  });
+}
+
+export function getEquipmentKits(token: string) {
+  return apiRequest<EquipmentKit[]>("/equipment/api/v1/equipment-kits", { token });
+}
+
+export function createEquipmentKit(token: string, body: {
+  name: string;
+  description?: string;
+  equipmentIds: string[];
+}) {
+  return apiRequest<{ kitId: string }>("/equipment/api/v1/equipment-kits", {
+    method: "POST",
+    token,
+    body
   });
 }
 
@@ -1188,8 +1308,16 @@ export function getMaintenanceRules(token: string) {
 
 export function upsertMaintenanceRule(token: string, body: {
   equipmentType: number;
+  planName?: string;
+  serviceCategory: number;
   serviceEveryMinutes?: number | null;
   serviceEveryDays?: number | null;
+  warningLeadMinutes?: number | null;
+  criticalLeadMinutes?: number | null;
+  warningLeadDays?: number | null;
+  criticalLeadDays?: number | null;
+  checklist?: string;
+  notes?: string;
   isActive: boolean;
 }) {
   return apiRequest<{ ruleId: string }>("/equipment/api/v1/maintenance/rules", {
@@ -1209,6 +1337,8 @@ export function createMaintenanceRecord(token: string, body: {
   description: string;
   cost?: number | null;
   performedBy?: string;
+  counterpartyName?: string;
+  serviceCategory: number;
   conditionAfterService: number;
 }) {
   return apiRequest<{ recordId: string }>("/equipment/api/v1/maintenance/records", {
@@ -1222,8 +1352,31 @@ export function getMaintenanceAlerts(token: string) {
   return apiRequest<MaintenanceAlert[]>("/equipment/api/v1/maintenance/alerts", { token });
 }
 
+export function getMaintenanceSummary(token: string, filters?: { fromUtc?: string; toUtc?: string }) {
+  return apiRequest<MaintenanceSummary>(withQuery("/equipment/api/v1/maintenance/summary", filters), { token });
+}
+
 export function getLessonEquipment(token: string, lessonId: string) {
   return apiRequest<LessonEquipmentState>(`/equipment/api/v1/lesson-equipment/${lessonId}`, {
+    token
+  });
+}
+
+export function reserveLessonEquipment(token: string, lessonId: string, body: {
+  equipmentIds?: string[];
+  kitIds?: string[];
+  notes?: string;
+}) {
+  return apiRequest<{ reservationId: string; reservedItems: number }>(`/equipment/api/v1/lesson-equipment/${lessonId}/reserve`, {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function releaseLessonEquipmentReservation(token: string, lessonId: string) {
+  return apiRequest<{ released: boolean }>(`/equipment/api/v1/lesson-equipment/${lessonId}/reservation/release`, {
+    method: "POST",
     token
   });
 }

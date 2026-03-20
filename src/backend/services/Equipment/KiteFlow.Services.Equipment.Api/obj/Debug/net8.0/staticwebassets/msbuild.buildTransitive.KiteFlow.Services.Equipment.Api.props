@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\KiteFlow.Services.Equipment.Api.props" />
-</Project>

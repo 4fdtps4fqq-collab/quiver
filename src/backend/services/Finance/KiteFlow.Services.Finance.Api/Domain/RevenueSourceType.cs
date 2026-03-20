@@ -4,5 +4,6 @@ public enum RevenueSourceType
 {
     EnrollmentSale = 1,
     SingleLesson = 2,
-    ManualAdjustment = 3
+    ManualAdjustment = 3,
+    ThirdPartyMaintenance = 4
 }

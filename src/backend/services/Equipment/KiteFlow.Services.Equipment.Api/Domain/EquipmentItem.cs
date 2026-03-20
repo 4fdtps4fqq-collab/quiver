@@ -10,6 +10,8 @@ public sealed class EquipmentItem : TenantScopedEntity
 
     public EquipmentType Type { get; set; }
 
+    public string? Category { get; set; }
+
     public string? TagCode { get; set; }
 
     public string? Brand { get; set; }
@@ -25,6 +27,10 @@ public sealed class EquipmentItem : TenantScopedEntity
     public DateTime? LastServiceDateUtc { get; set; }
 
     public int? LastServiceUsageMinutes { get; set; }
+
+    public EquipmentOwnershipType OwnershipType { get; set; } = EquipmentOwnershipType.SchoolOwned;
+
+    public string? OwnerDisplayName { get; set; }
 
     public bool IsActive { get; set; } = true;
 

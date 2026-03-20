@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\KiteFlow.Gateway.props" />
-</Project>

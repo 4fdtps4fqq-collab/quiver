@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\KiteFlow.Services.Schools.Api.props" />
-</Project>

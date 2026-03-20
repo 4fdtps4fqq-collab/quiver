@@ -24,6 +24,14 @@ public sealed class LessonSchedulingService
         Guid? currentLessonId = null,
         CancellationToken cancellationToken = default)
     {
+        var schedulingStatuses = new[]
+        {
+            LessonStatus.Scheduled,
+            LessonStatus.Confirmed,
+            LessonStatus.Realized,
+            LessonStatus.NoShow
+        };
+
         var settings = await _settingsClient.GetAsync(schoolId, cancellationToken);
         var lessonStart = lesson.StartAtUtc;
         var lessonEnd = lesson.StartAtUtc.AddMinutes(lesson.DurationMinutes);
@@ -49,7 +57,7 @@ public sealed class LessonSchedulingService
             x.SchoolId == schoolId &&
             x.Id != currentLessonId &&
             x.StudentId == lesson.StudentId &&
-            IsSchedulingStatus(x.Status) &&
+            schedulingStatuses.Contains(x.Status) &&
             x.StartAtUtc < lessonEnd &&
             x.StartAtUtc.AddMinutes(x.DurationMinutes) > lessonStart,
             cancellationToken);
@@ -63,7 +71,7 @@ public sealed class LessonSchedulingService
             x.SchoolId == schoolId &&
             x.Id != currentLessonId &&
             x.InstructorId == lesson.InstructorId &&
-            IsSchedulingStatus(x.Status) &&
+            schedulingStatuses.Contains(x.Status) &&
             x.StartAtUtc < bufferEnd &&
             x.StartAtUtc.AddMinutes(x.DurationMinutes) > bufferStart,
             cancellationToken);
@@ -235,9 +243,6 @@ public sealed class LessonSchedulingService
             .AddMinutes(minuteBlock);
         return rounded <= value ? rounded.AddMinutes(30) : rounded;
     }
-
-    private static bool IsSchedulingStatus(LessonStatus status)
-        => status is LessonStatus.Scheduled or LessonStatus.Confirmed or LessonStatus.Realized or LessonStatus.NoShow;
 
     private static IReadOnlyList<InstructorAvailabilitySlotModel> GetDefaultAvailability()
         =>

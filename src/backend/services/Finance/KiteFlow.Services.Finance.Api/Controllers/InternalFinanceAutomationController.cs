@@ -88,6 +88,81 @@ public sealed class InternalFinanceAutomationController : ControllerBase
         return Ok(new { synchronized = true, removed = false, revenueId = entry.Id });
     }
 
+    [HttpPost("expenses/automation")]
+    public async Task<IActionResult> UpsertAutomatedExpense([FromBody] UpsertAutomatedExpenseRequest request)
+    {
+        if (!IsInternalGatewayCall())
+        {
+            return Unauthorized("Esta rota interna aceita apenas chamadas autenticadas entre serviços.");
+        }
+
+        if (request.SchoolId == Guid.Empty)
+        {
+            return BadRequest("A escola da despesa automática é obrigatória.");
+        }
+
+        if (request.SourceId == Guid.Empty)
+        {
+            return BadRequest("O identificador de origem é obrigatório.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SourceType))
+        {
+            return BadRequest("O tipo de origem da despesa automática é obrigatório.");
+        }
+
+        var normalizedSourceType = request.SourceType.Trim();
+
+        var entry = await _dbContext.ExpenseEntries.FirstOrDefaultAsync(x =>
+            x.SchoolId == request.SchoolId &&
+            x.SourceType == normalizedSourceType &&
+            x.SourceId == request.SourceId);
+
+        if (!request.IsActive)
+        {
+            if (entry is not null)
+            {
+                _dbContext.ExpenseEntries.Remove(entry);
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return Ok(new { synchronized = true, removed = true });
+        }
+
+        if (request.Amount <= 0)
+        {
+            return BadRequest("O valor da despesa automática deve ser maior que zero.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return BadRequest("A descrição é obrigatória para a despesa automática.");
+        }
+
+        if (entry is null)
+        {
+            entry = new ExpenseEntry
+            {
+                SchoolId = request.SchoolId,
+                SourceType = normalizedSourceType,
+                SourceId = request.SourceId
+            };
+
+            _dbContext.ExpenseEntries.Add(entry);
+        }
+
+        entry.SourceType = normalizedSourceType;
+        entry.SourceId = request.SourceId;
+        entry.Category = request.Category;
+        entry.Amount = request.Amount;
+        entry.Description = request.Description.Trim();
+        entry.Vendor = string.IsNullOrWhiteSpace(request.Vendor) ? null : request.Vendor.Trim();
+        entry.OccurredAtUtc = request.OccurredAtUtc;
+
+        await _dbContext.SaveChangesAsync();
+        return Ok(new { synchronized = true, removed = false, expenseId = entry.Id });
+    }
+
     private bool IsInternalGatewayCall()
     {
         var expected = _configuration["InternalServiceAuth:SharedKey"];
@@ -111,5 +186,16 @@ public sealed class InternalFinanceAutomationController : ControllerBase
         decimal Amount,
         DateTime RecognizedAtUtc,
         string Description,
+        bool IsActive);
+
+    public sealed record UpsertAutomatedExpenseRequest(
+        Guid SchoolId,
+        string SourceType,
+        Guid SourceId,
+        ExpenseCategory Category,
+        decimal Amount,
+        DateTime OccurredAtUtc,
+        string Description,
+        string? Vendor,
         bool IsActive);
 }

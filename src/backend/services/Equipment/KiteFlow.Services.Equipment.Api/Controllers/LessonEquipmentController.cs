@@ -52,28 +52,145 @@ public sealed class LessonEquipmentController : ControllerBase
             })
             .FirstOrDefaultAsync();
 
-        if (checkout is null)
-        {
-            return NotFound();
-        }
+        var items = checkout is null
+            ? Array.Empty<object>()
+            : (await _dbContext.LessonEquipmentCheckoutItems
+                .Where(x => x.SchoolId == schoolId && x.CheckoutId == checkout.Id)
+                .Include(x => x.Equipment)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.EquipmentId,
+                    equipmentName = x.Equipment!.Name,
+                    equipmentType = x.Equipment.Type.ToString(),
+                    conditionBefore = x.ConditionBefore.ToString(),
+                    conditionAfter = x.ConditionAfter.HasValue ? x.ConditionAfter.Value.ToString() : null,
+                    x.NotesBefore,
+                    x.NotesAfter
+                })
+                .ToListAsync()).Cast<object>().ToArray();
 
-        var items = await _dbContext.LessonEquipmentCheckoutItems
-            .Where(x => x.SchoolId == schoolId && x.CheckoutId == checkout.Id)
-            .Include(x => x.Equipment)
+        var reservation = await _dbContext.EquipmentReservations
+            .Where(x => x.SchoolId == schoolId && x.LessonId == lessonId)
             .Select(x => new
             {
                 x.Id,
-                x.EquipmentId,
-                equipmentName = x.Equipment!.Name,
-                equipmentType = x.Equipment.Type.ToString(),
-                conditionBefore = x.ConditionBefore.ToString(),
-                conditionAfter = x.ConditionAfter.HasValue ? x.ConditionAfter.Value.ToString() : null,
-                x.NotesBefore,
-                x.NotesAfter
+                x.LessonId,
+                x.ReservedFromUtc,
+                x.ReservedUntilUtc,
+                x.Notes,
+                x.CreatedByUserId
             })
+            .FirstOrDefaultAsync();
+
+        var reservedItems = reservation is null
+            ? Array.Empty<object>()
+            : (await _dbContext.EquipmentReservationItems
+                .Where(x => x.SchoolId == schoolId && x.ReservationId == reservation.Id)
+                .Include(x => x.Equipment)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.EquipmentId,
+                    equipmentName = x.Equipment!.Name,
+                    equipmentType = x.Equipment.Type.ToString()
+                })
+                .ToListAsync()).Cast<object>().ToArray();
+
+        return Ok(new { checkout, items, reservation, reservedItems });
+    }
+
+    [HttpPost("{lessonId:guid}/reserve")]
+    public async Task<IActionResult> Reserve(Guid lessonId, [FromBody] ReserveEquipmentRequest request)
+    {
+        _currentTenant.EnsureTenant();
+        var schoolId = _currentTenant.SchoolId!.Value;
+        var userId = _currentUser.UserId ?? Guid.Empty;
+
+        var lesson = await GetLessonSnapshotAsync(lessonId);
+        if (lesson is null || lesson.SchoolId != schoolId)
+        {
+            return BadRequest("LessonId inválido para a escola atual.");
+        }
+
+        var equipmentIds = await ExpandEquipmentIdsAsync(schoolId, request.EquipmentIds, request.KitIds);
+        if (equipmentIds.Count == 0)
+        {
+            return BadRequest("Selecione pelo menos um equipamento ou kit para reservar.");
+        }
+
+        var validation = await ValidateEquipmentAvailabilityAsync(schoolId, lessonId, lesson.StartAtUtc, lesson.StartAtUtc.AddMinutes(lesson.DurationMinutes), equipmentIds);
+        if (validation is not null)
+        {
+            return validation;
+        }
+
+        var existing = await _dbContext.EquipmentReservations
+            .FirstOrDefaultAsync(x => x.SchoolId == schoolId && x.LessonId == lessonId);
+
+        if (existing is not null)
+        {
+            var existingItems = await _dbContext.EquipmentReservationItems
+                .Where(x => x.SchoolId == schoolId && x.ReservationId == existing.Id)
+                .ToListAsync();
+
+            _dbContext.EquipmentReservationItems.RemoveRange(existingItems);
+            existing.ReservedFromUtc = lesson.StartAtUtc;
+            existing.ReservedUntilUtc = lesson.StartAtUtc.AddMinutes(lesson.DurationMinutes);
+            existing.Notes = NormalizeNullable(request.Notes);
+        }
+        else
+        {
+            existing = new EquipmentReservation
+            {
+                SchoolId = schoolId,
+                LessonId = lessonId,
+                ReservedFromUtc = lesson.StartAtUtc,
+                ReservedUntilUtc = lesson.StartAtUtc.AddMinutes(lesson.DurationMinutes),
+                Notes = NormalizeNullable(request.Notes),
+                CreatedByUserId = userId
+            };
+
+            _dbContext.EquipmentReservations.Add(existing);
+        }
+
+        foreach (var equipmentId in equipmentIds)
+        {
+            _dbContext.EquipmentReservationItems.Add(new EquipmentReservationItem
+            {
+                SchoolId = schoolId,
+                ReservationId = existing.Id,
+                EquipmentId = equipmentId
+            });
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return Ok(new { reservationId = existing.Id, reservedItems = equipmentIds.Count });
+    }
+
+    [HttpPost("{lessonId:guid}/reservation/release")]
+    public async Task<IActionResult> ReleaseReservation(Guid lessonId)
+    {
+        _currentTenant.EnsureTenant();
+        var schoolId = _currentTenant.SchoolId!.Value;
+
+        var reservation = await _dbContext.EquipmentReservations
+            .FirstOrDefaultAsync(x => x.SchoolId == schoolId && x.LessonId == lessonId);
+
+        if (reservation is null)
+        {
+            return Ok(new { released = false });
+        }
+
+        var items = await _dbContext.EquipmentReservationItems
+            .Where(x => x.SchoolId == schoolId && x.ReservationId == reservation.Id)
             .ToListAsync();
 
-        return Ok(new { checkout, items });
+        _dbContext.EquipmentReservationItems.RemoveRange(items);
+        _dbContext.EquipmentReservations.Remove(reservation);
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { released = true });
     }
 
     [HttpPost("{lessonId:guid}/checkout")]
@@ -86,13 +203,13 @@ public sealed class LessonEquipmentController : ControllerBase
         var lesson = await GetLessonSnapshotAsync(lessonId);
         if (lesson is null || lesson.SchoolId != schoolId)
         {
-            return BadRequest("LessonId is invalid for the current school.");
+            return BadRequest("LessonId inválido para a escola atual.");
         }
 
         var existing = await _dbContext.LessonEquipmentCheckouts.AnyAsync(x => x.SchoolId == schoolId && x.LessonId == lessonId);
         if (existing)
         {
-            return Conflict("This lesson already has an equipment checkout.");
+            return Conflict("Esta aula já possui checkout de equipamento.");
         }
 
         if (request.Items is null || request.Items.Count == 0)
@@ -103,7 +220,19 @@ public sealed class LessonEquipmentController : ControllerBase
         var equipmentIds = request.Items.Select(x => x.EquipmentId).Distinct().ToList();
         if (equipmentIds.Count != request.Items.Count)
         {
-            return BadRequest("Duplicated equipment items are not allowed.");
+            return BadRequest("Não é permitido repetir equipamento no checkout.");
+        }
+
+        var validation = await ValidateEquipmentAvailabilityAsync(
+            schoolId,
+            lessonId,
+            lesson.StartAtUtc,
+            lesson.StartAtUtc.AddMinutes(lesson.DurationMinutes),
+            equipmentIds);
+
+        if (validation is not null)
+        {
+            return validation;
         }
 
         var equipment = await _dbContext.EquipmentItems
@@ -112,21 +241,7 @@ public sealed class LessonEquipmentController : ControllerBase
 
         if (equipment.Count != equipmentIds.Count)
         {
-            return BadRequest("One or more equipment items are invalid or inactive.");
-        }
-
-        var alreadyInUse = await _dbContext.LessonEquipmentCheckoutItems
-            .Where(x => x.SchoolId == schoolId && equipmentIds.Contains(x.EquipmentId))
-            .Join(_dbContext.LessonEquipmentCheckouts.Where(x => x.SchoolId == schoolId && x.CheckedInAtUtc == null),
-                item => item.CheckoutId,
-                checkout => checkout.Id,
-                (item, _) => item.EquipmentId)
-            .Distinct()
-            .ToListAsync();
-
-        if (alreadyInUse.Count > 0)
-        {
-            return Conflict("One or more equipment items are already in an open checkout.");
+            return BadRequest("Um ou mais equipamentos são inválidos ou estão inativos.");
         }
 
         var checkout = new LessonEquipmentCheckout
@@ -152,6 +267,19 @@ public sealed class LessonEquipmentController : ControllerBase
             });
         }
 
+        var reservation = await _dbContext.EquipmentReservations
+            .FirstOrDefaultAsync(x => x.SchoolId == schoolId && x.LessonId == lessonId);
+
+        if (reservation is not null)
+        {
+            var reservationItems = await _dbContext.EquipmentReservationItems
+                .Where(x => x.SchoolId == schoolId && x.ReservationId == reservation.Id)
+                .ToListAsync();
+
+            _dbContext.EquipmentReservationItems.RemoveRange(reservationItems);
+            _dbContext.EquipmentReservations.Remove(reservation);
+        }
+
         await _dbContext.SaveChangesAsync();
         return Ok(new { checkoutId = checkout.Id });
     }
@@ -166,7 +294,7 @@ public sealed class LessonEquipmentController : ControllerBase
         var lesson = await GetLessonSnapshotAsync(lessonId);
         if (lesson is null || lesson.SchoolId != schoolId)
         {
-            return BadRequest("LessonId is invalid for the current school.");
+            return BadRequest("LessonId inválido para a escola atual.");
         }
 
         var checkout = await _dbContext.LessonEquipmentCheckouts
@@ -174,12 +302,12 @@ public sealed class LessonEquipmentController : ControllerBase
 
         if (checkout is null)
         {
-            return NotFound("Checkout not found for this lesson.");
+            return NotFound("Checkout não encontrado para esta aula.");
         }
 
         if (checkout.CheckedInAtUtc.HasValue)
         {
-            return Conflict("Checkout already closed.");
+            return Conflict("Este checkout já foi encerrado.");
         }
 
         if (request.Items is null || request.Items.Count == 0)
@@ -195,7 +323,7 @@ public sealed class LessonEquipmentController : ControllerBase
         var checkoutIds = checkoutItems.Select(x => x.EquipmentId).OrderBy(x => x).ToList();
         if (!requestedIds.SequenceEqual(checkoutIds))
         {
-            return BadRequest("Checkin must contain the same equipment set used in checkout.");
+            return BadRequest("O check-in deve conter exatamente o mesmo conjunto de equipamentos do checkout.");
         }
 
         var equipment = await _dbContext.EquipmentItems
@@ -233,6 +361,86 @@ public sealed class LessonEquipmentController : ControllerBase
         return Ok();
     }
 
+    private async Task<IActionResult?> ValidateEquipmentAvailabilityAsync(
+        Guid schoolId,
+        Guid lessonId,
+        DateTime fromUtc,
+        DateTime untilUtc,
+        List<Guid> equipmentIds)
+    {
+        var alreadyInUse = await _dbContext.LessonEquipmentCheckoutItems
+            .Where(x => x.SchoolId == schoolId && equipmentIds.Contains(x.EquipmentId))
+            .Join(_dbContext.LessonEquipmentCheckouts.Where(x => x.SchoolId == schoolId && x.CheckedInAtUtc == null),
+                item => item.CheckoutId,
+                checkout => checkout.Id,
+                (item, checkout) => new { item.EquipmentId, checkout.LessonId })
+            .Where(x => x.LessonId != lessonId)
+            .Select(x => x.EquipmentId)
+            .Distinct()
+            .ToListAsync();
+
+        if (alreadyInUse.Count > 0)
+        {
+            return Conflict("Um ou mais equipamentos já estão em checkout aberto.");
+        }
+
+        var reservedByOtherLesson = await _dbContext.EquipmentReservationItems
+            .Where(x => x.SchoolId == schoolId && equipmentIds.Contains(x.EquipmentId))
+            .Join(_dbContext.EquipmentReservations.Where(x =>
+                    x.SchoolId == schoolId &&
+                    x.LessonId != lessonId &&
+                    x.ReservedFromUtc < untilUtc &&
+                    x.ReservedUntilUtc > fromUtc),
+                item => item.ReservationId,
+                reservation => reservation.Id,
+                (item, _) => item.EquipmentId)
+            .Distinct()
+            .ToListAsync();
+
+        if (reservedByOtherLesson.Count > 0)
+        {
+            return Conflict("Um ou mais equipamentos já estão reservados para outra aula neste horário.");
+        }
+
+        var blockedByCondition = await _dbContext.EquipmentItems
+            .Where(x =>
+                x.SchoolId == schoolId &&
+                equipmentIds.Contains(x.Id) &&
+                (x.CurrentCondition == EquipmentCondition.NeedsRepair ||
+                 x.CurrentCondition == EquipmentCondition.OutOfService ||
+                 !x.IsActive))
+            .Select(x => x.Name)
+            .ToListAsync();
+
+        if (blockedByCondition.Count > 0)
+        {
+            return Conflict($"Os seguintes equipamentos não estão disponíveis para operação: {string.Join(", ", blockedByCondition)}.");
+        }
+
+        return null;
+    }
+
+    private async Task<List<Guid>> ExpandEquipmentIdsAsync(Guid schoolId, List<Guid>? equipmentIds, List<Guid>? kitIds)
+    {
+        var ids = new HashSet<Guid>((equipmentIds ?? []).Where(x => x != Guid.Empty));
+
+        var normalizedKitIds = (kitIds ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
+        if (normalizedKitIds.Count > 0)
+        {
+            var kitEquipmentIds = await _dbContext.EquipmentKitItems
+                .Where(x => x.SchoolId == schoolId && normalizedKitIds.Contains(x.KitId))
+                .Select(x => x.EquipmentId)
+                .ToListAsync();
+
+            foreach (var equipmentId in kitEquipmentIds)
+            {
+                ids.Add(equipmentId);
+            }
+        }
+
+        return ids.ToList();
+    }
+
     private async Task<LessonSnapshot?> GetLessonSnapshotAsync(Guid lessonId)
     {
         try
@@ -260,6 +468,8 @@ public sealed class LessonEquipmentController : ControllerBase
 
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public sealed record ReserveEquipmentRequest(List<Guid>? EquipmentIds, List<Guid>? KitIds, string? Notes);
 
     public sealed record CheckoutRequest(string? NotesBefore, List<CheckoutItemRequest> Items);
 

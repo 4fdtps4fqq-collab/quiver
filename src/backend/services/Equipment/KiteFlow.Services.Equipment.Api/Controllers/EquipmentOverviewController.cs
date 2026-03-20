@@ -119,12 +119,35 @@ public sealed class EquipmentOverviewController : ControllerBase
             .OrderByDescending(x => x.count)
             .ToListAsync();
 
+        var activeAlerts = await _dbContext.EquipmentItems
+            .Where(x =>
+                x.SchoolId == schoolId &&
+                x.IsActive &&
+                (x.CurrentCondition == EquipmentCondition.Attention ||
+                 x.CurrentCondition == EquipmentCondition.NeedsRepair ||
+                 x.CurrentCondition == EquipmentCondition.OutOfService))
+            .CountAsync();
+
+        var reservationsInPeriod = await _dbContext.EquipmentReservations.CountAsync(x =>
+            x.SchoolId == schoolId &&
+            (!fromUtc.HasValue || x.ReservedFromUtc >= fromUtc.Value) &&
+            (!toUtc.HasValue || x.ReservedUntilUtc <= toUtc.Value));
+
+        var maintenanceExpense = await maintenanceQuery
+            .Where(x => x.FinancialEffect == MaintenanceFinancialEffect.Expense)
+            .SumAsync(x => (decimal?)x.Cost) ?? 0m;
+
+        var maintenanceRevenue = await maintenanceQuery
+            .Where(x => x.FinancialEffect == MaintenanceFinancialEffect.Revenue)
+            .SumAsync(x => (decimal?)x.Cost) ?? 0m;
+
         return Ok(new
         {
             fromUtc,
             toUtc,
             storages = await _dbContext.GearStorages.CountAsync(x => x.SchoolId == schoolId && x.IsActive),
             equipment = await _dbContext.EquipmentItems.CountAsync(x => x.SchoolId == schoolId && x.IsActive),
+            activeKits = await _dbContext.EquipmentKits.CountAsync(x => x.SchoolId == schoolId && x.IsActive),
             equipmentInAttention = await _dbContext.EquipmentItems.CountAsync(x =>
                 x.SchoolId == schoolId &&
                 (x.CurrentCondition == EquipmentCondition.Attention ||
@@ -134,9 +157,13 @@ public sealed class EquipmentOverviewController : ControllerBase
                 x.SchoolId == schoolId && x.CheckedInAtUtc == null),
             pendingMaintenance = await _dbContext.MaintenanceRules.CountAsync(x =>
                 x.SchoolId == schoolId && x.IsActive),
+            smartAlerts = activeAlerts,
             usageMinutesInPeriod = await usageLogsQuery.SumAsync(x => (int?)x.UsageMinutes) ?? 0,
             checkoutsInPeriod = await checkoutsQuery.CountAsync(),
+            reservationsInPeriod,
             maintenanceExecutedInPeriod = await maintenanceQuery.CountAsync(),
+            maintenanceExpense,
+            maintenanceRevenue,
             conditionBreakdown,
             activitySeries
         });
