@@ -5,7 +5,9 @@ import {
   CircleDollarSign,
   GraduationCap,
   Home,
+  Mail,
   School,
+  ShieldCheck,
   Users,
   Wrench
 } from "lucide-react";
@@ -32,5 +34,9 @@ export const navigationItems: NavigationItem[] = [
   { to: "/equipment", label: "Equipamentos", section: "Operação", icon: Activity, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.equipmentManage] },
   { to: "/maintenance", label: "Manutenção", section: "Operação", icon: Wrench, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.maintenanceManage] },
   { to: "/finance", label: "Financeiro", section: "Financeiro", icon: CircleDollarSign, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.financeManage] },
-  { to: "/school", label: "Escola", section: "Administração", icon: School, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] }
+  { to: "/school", label: "Escola", section: "Administração", icon: School, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
+  { to: "/school/collaborators", label: "Colaboradores", section: "Administração", icon: Users, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
+  { to: "/school/instructors/schedule", label: "Agenda dos instrutores", section: "Administração", icon: CalendarRange, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
+  { to: "/school/invitations", label: "Convites", section: "Administração", icon: Mail, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
+  { to: "/school/audit", label: "Auditoria", section: "Administração", icon: ShieldCheck, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] }
 ];

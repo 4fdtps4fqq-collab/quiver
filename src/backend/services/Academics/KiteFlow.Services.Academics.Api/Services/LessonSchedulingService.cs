@@ -247,12 +247,13 @@ public sealed class LessonSchedulingService
     private static IReadOnlyList<InstructorAvailabilitySlotModel> GetDefaultAvailability()
         =>
         [
-            new(DayOfWeek.Monday, 8 * 60, 18 * 60, "Segunda"),
-            new(DayOfWeek.Tuesday, 8 * 60, 18 * 60, "Terça"),
-            new(DayOfWeek.Wednesday, 8 * 60, 18 * 60, "Quarta"),
-            new(DayOfWeek.Thursday, 8 * 60, 18 * 60, "Quinta"),
-            new(DayOfWeek.Friday, 8 * 60, 18 * 60, "Sexta"),
-            new(DayOfWeek.Saturday, 8 * 60, 14 * 60, "Sábado")
+            new(DayOfWeek.Sunday, 0, 24 * 60, "Domingo"),
+            new(DayOfWeek.Monday, 0, 24 * 60, "Segunda"),
+            new(DayOfWeek.Tuesday, 0, 24 * 60, "Terça"),
+            new(DayOfWeek.Wednesday, 0, 24 * 60, "Quarta"),
+            new(DayOfWeek.Thursday, 0, 24 * 60, "Quinta"),
+            new(DayOfWeek.Friday, 0, 24 * 60, "Sexta"),
+            new(DayOfWeek.Saturday, 0, 24 * 60, "Sábado")
         ];
 }
 

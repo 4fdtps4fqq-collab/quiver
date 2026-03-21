@@ -198,6 +198,15 @@ if (-not [string]::IsNullOrWhiteSpace($IdentityPublicLoginUrl)) {
 
         $json.IdentityEmailDelivery.PublicLoginUrl = $IdentityPublicLoginUrl
     }
+
+    Update-JsonFile -Path (Join-Path $OutputRoot "gateway\appsettings.json") -Mutator {
+        param($json)
+        if (-not $json.OwnerCredentialDelivery) {
+            $json | Add-Member -NotePropertyName OwnerCredentialDelivery -NotePropertyValue ([pscustomobject]@{})
+        }
+
+        $json.OwnerCredentialDelivery.PublicLoginUrl = $IdentityPublicLoginUrl
+    }
 }
 
 if ($GatewayAllowedOrigins.Count -gt 0) {

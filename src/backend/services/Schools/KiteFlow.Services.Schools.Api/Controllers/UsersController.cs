@@ -41,6 +41,7 @@ public sealed class UsersController : ControllerBase
                 x.IdentityUserId,
                 x.FullName,
                 x.Phone,
+                x.SalaryAmount,
                 x.AvatarUrl,
                 x.IsActive,
                 x.CreatedAtUtc
@@ -62,6 +63,11 @@ public sealed class UsersController : ControllerBase
             return BadRequest("O nome completo do usuário é obrigatório.");
         }
 
+        if (request.SalaryAmount.HasValue && request.SalaryAmount.Value < 0)
+        {
+            return BadRequest("O salário não pode ser negativo.");
+        }
+
         var exists = await _dbContext.UserProfiles.AnyAsync(x =>
             x.SchoolId == schoolId &&
             x.IdentityUserId == request.IdentityUserId);
@@ -77,6 +83,7 @@ public sealed class UsersController : ControllerBase
             IdentityUserId = request.IdentityUserId,
             FullName = fullName,
             Phone = NormalizeNullable(request.Phone),
+            SalaryAmount = NormalizeSalary(request.SalaryAmount),
             AvatarUrl = NormalizeNullable(request.AvatarUrl),
             IsActive = request.IsActive
         };
@@ -109,8 +116,14 @@ public sealed class UsersController : ControllerBase
             return BadRequest("O nome completo do usuário é obrigatório.");
         }
 
+        if (request.SalaryAmount.HasValue && request.SalaryAmount.Value < 0)
+        {
+            return BadRequest("O salário não pode ser negativo.");
+        }
+
         profile.FullName = fullName;
         profile.Phone = NormalizeNullable(request.Phone);
+        profile.SalaryAmount = NormalizeSalary(request.SalaryAmount);
         profile.AvatarUrl = NormalizeNullable(request.AvatarUrl);
         profile.IsActive = request.IsActive;
 
@@ -121,16 +134,21 @@ public sealed class UsersController : ControllerBase
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static decimal? NormalizeSalary(decimal? value)
+        => value.HasValue ? decimal.Round(value.Value, 2) : null;
+
     public sealed record CreateUserProfileRequest(
         Guid IdentityUserId,
         string FullName,
         string? Phone,
+        decimal? SalaryAmount,
         string? AvatarUrl,
         bool IsActive);
 
     public sealed record UpdateUserProfileRequest(
         string FullName,
         string? Phone,
+        decimal? SalaryAmount,
         string? AvatarUrl,
         bool IsActive);
 }

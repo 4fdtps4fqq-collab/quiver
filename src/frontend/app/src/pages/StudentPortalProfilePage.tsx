@@ -1,6 +1,7 @@
 import { LoaderCircle, Save, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth/SessionContext";
+import { ErrorBlock } from "../components/OperationsUi";
 import {
   getStudentPortalProfile,
   updateStudentPortalProfile,
@@ -92,11 +93,7 @@ export function StudentPortalProfilePage() {
   }
 
   if (!payload) {
-    return (
-      <div className="rounded-[32px] border border-rose-300/40 bg-white/70 p-8 text-sm text-rose-900 shadow-xl backdrop-blur-xl">
-        {error ?? "Não foi possível carregar o perfil do aluno."}
-      </div>
-    );
+    return <ErrorBlock message={error ?? "Não foi possível carregar o perfil do aluno."} />;
   }
 
   return (
@@ -213,7 +210,7 @@ export function StudentPortalProfilePage() {
               Salvar perfil
             </button>
             {feedback ? <span className="text-sm text-emerald-700">{feedback}</span> : null}
-            {error ? <span className="text-sm text-rose-700">{error}</span> : null}
+            {error ? <ErrorBlock message={error} /> : null}
           </div>
         </form>
 

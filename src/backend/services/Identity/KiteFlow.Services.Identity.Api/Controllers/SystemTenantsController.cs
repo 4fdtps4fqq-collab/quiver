@@ -1,4 +1,5 @@
 using KiteFlow.Services.Identity.Api.Data;
+using KiteFlow.Services.Identity.Api.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,42 @@ public sealed class SystemTenantsController : ControllerBase
     public SystemTenantsController(IdentityDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    [HttpGet("owners")]
+    public async Task<IActionResult> GetOwners([FromQuery] Guid[] schoolIds)
+    {
+        var normalizedSchoolIds = schoolIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (normalizedSchoolIds.Length == 0)
+        {
+            return Ok(Array.Empty<object>());
+        }
+
+        var owners = await _dbContext.UserAccounts
+            .AsNoTracking()
+            .Where(x =>
+                x.SchoolId != null &&
+                normalizedSchoolIds.Contains(x.SchoolId.Value) &&
+                x.Role == PlatformRole.Owner)
+            .OrderBy(x => x.CreatedAtUtc)
+            .Select(x => new
+            {
+                schoolId = x.SchoolId!.Value,
+                userId = x.Id,
+                x.Email
+            })
+            .ToListAsync();
+
+        var deduplicatedOwners = owners
+            .GroupBy(x => x.schoolId)
+            .Select(group => group.First())
+            .ToList();
+
+        return Ok(deduplicatedOwners);
     }
 
     [HttpDelete("{schoolId:guid}")]

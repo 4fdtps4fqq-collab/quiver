@@ -13,7 +13,11 @@ import { LessonsPage } from "../pages/LessonsPage";
 import { EquipmentPage } from "../pages/EquipmentPage";
 import { MaintenancePage } from "../pages/MaintenancePage";
 import { FinancePage } from "../pages/FinancePage";
-import { SchoolAdminPage } from "../pages/SchoolAdminPage";
+import { SchoolSettingsPage } from "../pages/SchoolSettingsPage";
+import { SchoolCollaboratorsPage } from "../pages/SchoolCollaboratorsPage";
+import { SchoolInstructorSchedulePage } from "../pages/SchoolInstructorSchedulePage";
+import { SchoolInvitationsPage } from "../pages/SchoolInvitationsPage";
+import { SchoolAuditPage } from "../pages/SchoolAuditPage";
 import { StudentPortalPage } from "../pages/StudentPortalPage";
 import { StudentPortalHistoryPage } from "../pages/StudentPortalHistoryPage";
 import { StudentPortalNotificationsPage } from "../pages/StudentPortalNotificationsPage";
@@ -79,7 +83,7 @@ export function AppRouter() {
               allowedRoles={["Owner", "Admin", "Instructor"]}
               requiredPermissions={[platformPermissions.instructorsManage]}
             >
-              <Navigate to="/school" replace state={{ highlightSection: "instructors" }} />
+              <Navigate to="/school/instructors/schedule" replace />
             </ProtectedRoute>
           }
         />
@@ -156,7 +160,51 @@ export function AppRouter() {
               allowedRoles={["Owner", "Admin", "Instructor"]}
               requiredPermissions={[platformPermissions.schoolManage]}
             >
-              <SchoolAdminPage />
+              <SchoolSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/school/collaborators"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Owner", "Admin", "Instructor"]}
+              requiredPermissions={[platformPermissions.schoolManage]}
+            >
+              <SchoolCollaboratorsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/school/instructors/schedule"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Owner", "Admin", "Instructor"]}
+              requiredPermissions={[platformPermissions.schoolManage]}
+            >
+              <SchoolInstructorSchedulePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/school/invitations"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Owner", "Admin", "Instructor"]}
+              requiredPermissions={[platformPermissions.schoolManage]}
+            >
+              <SchoolInvitationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/school/audit"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Owner", "Admin", "Instructor"]}
+              requiredPermissions={[platformPermissions.schoolManage]}
+            >
+              <SchoolAuditPage />
             </ProtectedRoute>
           }
         />

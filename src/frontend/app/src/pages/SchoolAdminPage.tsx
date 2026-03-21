@@ -9,14 +9,19 @@ import {
 } from "../lib/auth-api";
 import {
   cancelSchoolInvitation,
+  createScheduleBlock,
   createInstructor,
   createSchoolInvitation,
   createSchoolUser,
   getInstructors,
   getSchoolInvitations,
+  getScheduleBlocks,
   getSchoolUsers,
+  resetSchoolUserPassword,
+  deleteScheduleBlock,
   type Instructor,
   type InstructorAvailabilitySlot,
+  type ScheduleBlock,
   type SchoolInvitation,
   type SchoolUser,
   updateInstructor,
@@ -26,6 +31,7 @@ import { PageHero } from "../components/PageHero";
 import { PermissionMatrix } from "../components/PermissionMatrix";
 import { ErrorBlock, GlassCard, LoadingBlock, StatusBadge } from "../components/OperationsUi";
 import { getDefaultPermissionsForRole, normalizePermissions, type PlatformPermission } from "../lib/permissions";
+import { formatDate } from "../lib/formatters";
 
 const roleOptions = [
   { value: 5, label: "Administrativo", role: "Admin" },
@@ -43,10 +49,10 @@ type SchoolUserRole = (typeof roleValueToName)[keyof typeof roleValueToName];
 const initialCreateForm = {
   fullName: "",
   email: "",
-  password: "",
   role: "3",
   permissions: getDefaultPermissionsForRole("Instructor"),
   phone: "",
+  salaryAmount: "",
   specialties: "",
   availability: defaultAvailability(),
   hourlyRate: "",
@@ -60,6 +66,7 @@ const initialEditForm = {
   role: "3",
   permissions: getDefaultPermissionsForRole("Instructor"),
   phone: "",
+  salaryAmount: "",
   specialties: "",
   availability: defaultAvailability(),
   hourlyRate: "",
@@ -81,9 +88,18 @@ export function SchoolAdminPage() {
   const [school, setSchool] = useState<SchoolCurrentResponse | null>(null);
   const [users, setUsers] = useState<SchoolUser[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
   const [invitations, setInvitations] = useState<SchoolInvitation[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuthenticationAuditEvent[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [availabilityWeekStart, setAvailabilityWeekStart] = useState(() => startOfWeek(new Date()));
+  const [availabilityBlockForm, setAvailabilityBlockForm] = useState(() => ({
+    date: toDateInputValue(new Date()),
+    startTime: "08:00",
+    endTime: "18:00",
+    title: "Indisponível",
+    notes: ""
+  }));
 
   const [createForm, setCreateForm] = useState(initialCreateForm);
   const [editForm, setEditForm] = useState(initialEditForm);
@@ -109,6 +125,8 @@ export function SchoolAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingCreate, setIsSavingCreate] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isSavingAvailabilityBlock, setIsSavingAvailabilityBlock] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSavingInvitation, setIsSavingInvitation] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +137,13 @@ export function SchoolAdminPage() {
     [users]
   );
   const selectedUser = collaborators.find((item) => item.identityUserId === selectedUserId) ?? null;
+  const selectedInstructor = useMemo(
+    () =>
+      selectedUser
+        ? instructors.find((item) => item.identityUserId === selectedUser.identityUserId) ?? null
+        : null,
+    [instructors, selectedUser]
+  );
   const activeUsers = collaborators.filter((item) => item.isActive).length;
   const activeInstructors = instructors.filter((item) => item.isActive).length;
   const normalizedCollaboratorSearch = collaboratorSearch.trim().toLowerCase();
@@ -139,6 +164,20 @@ export function SchoolAdminPage() {
     ],
     [activeInstructors, activeUsers, school?.currencyCode, school?.timezone]
   );
+  const availabilityWeekDays = useMemo(() => buildWeekDays(availabilityWeekStart), [availabilityWeekStart]);
+  const selectedInstructorBlocks = useMemo(
+    () =>
+      selectedInstructor
+        ? scheduleBlocks
+            .filter((item) => item.scope === "Instructor" && item.instructorId === selectedInstructor.id)
+            .sort((left, right) => left.startAtUtc.localeCompare(right.startAtUtc))
+        : [],
+    [scheduleBlocks, selectedInstructor]
+  );
+  const selectedInstructorBlocksInWeek = useMemo(
+    () => selectedInstructorBlocks.filter((item) => isWithinWeek(item.startAtUtc, availabilityWeekStart)),
+    [availabilityWeekStart, selectedInstructorBlocks]
+  );
 
   useEffect(() => {
     if (!token) {
@@ -155,7 +194,6 @@ export function SchoolAdminPage() {
 
     const roleOption = roleOptions.find((item) => item.role === selectedUser.role);
     const roleName = resolveRoleName(String(roleOption?.value ?? 3));
-    const linkedInstructor = instructors.find((item) => item.identityUserId === selectedUser.identityUserId) ?? null;
 
     setEditForm({
       profileId: selectedUser.profileId,
@@ -163,13 +201,21 @@ export function SchoolAdminPage() {
       role: String(roleOption?.value ?? 3),
       permissions: normalizePermissions(selectedUser.permissions ?? getDefaultPermissionsForRole(roleName)),
       phone: selectedUser.phone ?? "",
-      specialties: linkedInstructor?.specialties ?? "",
-      availability: linkedInstructor?.availability?.length ? linkedInstructor.availability : defaultAvailability(),
-      hourlyRate: linkedInstructor ? formatCurrencyInput(linkedInstructor.hourlyRate) : "",
+      salaryAmount: selectedUser.salaryAmount ? formatCurrencyInput(selectedUser.salaryAmount) : "",
+      specialties: selectedInstructor?.specialties ?? "",
+      availability: selectedInstructor?.availability?.length ? selectedInstructor.availability : defaultAvailability(),
+      hourlyRate: selectedInstructor ? formatCurrencyInput(selectedInstructor.hourlyRate) : "",
       isActive: selectedUser.isActive,
       mustChangePassword: selectedUser.mustChangePassword
     });
-  }, [instructors, selectedUser]);
+  }, [selectedInstructor, selectedUser]);
+
+  useEffect(() => {
+    setAvailabilityBlockForm((current) => ({
+      ...current,
+      date: toDateInputValue(availabilityWeekStart)
+    }));
+  }, [availabilityWeekStart]);
 
   async function loadData(currentToken: string) {
     try {
@@ -177,10 +223,11 @@ export function SchoolAdminPage() {
       setError(null);
       setNotice(null);
 
-      const [schoolData, usersData, instructorsData, invitationsData, auditData] = await Promise.all([
+      const [schoolData, usersData, instructorsData, scheduleBlocksData, invitationsData, auditData] = await Promise.all([
         getSchoolCurrent(currentToken),
         getSchoolUsers(currentToken),
         getInstructors(currentToken),
+        getScheduleBlocks(currentToken),
         getSchoolInvitations(currentToken),
         getAuthenticationAuditEvents(currentToken, 24)
       ]);
@@ -188,6 +235,7 @@ export function SchoolAdminPage() {
       setSchool(schoolData);
       setUsers(usersData);
       setInstructors(instructorsData);
+      setScheduleBlocks(scheduleBlocksData);
       setInvitations(invitationsData);
       setAuditEvents(auditData);
       setSettingsForm({
@@ -250,13 +298,14 @@ export function SchoolAdminPage() {
     try {
       setIsSavingCreate(true);
       setError(null);
+      setNotice(null);
       const createdUser = await createSchoolUser(token, {
         fullName: createForm.fullName,
         email: createForm.email,
-        password: createForm.password,
         role: Number(createForm.role),
         permissions: createForm.permissions,
         phone: createForm.phone || undefined,
+        salaryAmount: resolveRoleName(createForm.role) === "Admin" ? parseCurrencyInput(createForm.salaryAmount) : null,
         isActive: createForm.isActive,
         mustChangePassword: createForm.mustChangePassword
       });
@@ -273,6 +322,11 @@ export function SchoolAdminPage() {
         });
       }
 
+      setNotice(
+        createdUser.deliveryMode === "File" && createdUser.outboxFilePath
+          ? `Colaborador criado e senha temporária salva no outbox local em ${createdUser.outboxFilePath}.`
+          : "Colaborador criado e senha temporária enviada por e-mail."
+      );
       setCreateForm(initialCreateForm);
       setSelectedUserId("");
       await loadData(token);
@@ -297,6 +351,7 @@ export function SchoolAdminPage() {
         role: Number(editForm.role),
         permissions: editForm.permissions,
         phone: editForm.phone || undefined,
+        salaryAmount: resolveRoleName(editForm.role) === "Admin" ? parseCurrencyInput(editForm.salaryAmount) : null,
         isActive: editForm.isActive,
         mustChangePassword: editForm.mustChangePassword
       });
@@ -369,6 +424,95 @@ export function SchoolAdminPage() {
     setEditForm(initialEditForm);
     setError(null);
     setNotice(null);
+  }
+
+  async function handleResetCollaboratorPassword() {
+    if (!token || !selectedUser) {
+      return;
+    }
+
+    try {
+      setIsResettingPassword(true);
+      setError(null);
+      setNotice(null);
+
+      const result = await resetSchoolUserPassword(token, selectedUser.identityUserId, {
+        deliverByEmail: true,
+        email: selectedUser.email ?? undefined,
+        fullName: editForm.fullName
+      });
+
+      setNotice(
+        result.deliveryMode === "File" && result.outboxFilePath
+          ? `Nova senha temporária do colaborador salva no outbox local em ${result.outboxFilePath}.`
+          : "Nova senha temporária enviada por e-mail com sucesso."
+      );
+
+      await loadData(token);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível resetar a senha do colaborador.");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  }
+
+  async function handleCreateAvailabilityBlock() {
+    if (!token || !selectedInstructor) {
+      return;
+    }
+
+    try {
+      setIsSavingAvailabilityBlock(true);
+      setError(null);
+      setNotice(null);
+
+      const startAtUtc = combineDateAndTimeToUtc(
+        availabilityBlockForm.date,
+        availabilityBlockForm.startTime
+      );
+      const endAtUtc = combineDateAndTimeToUtc(
+        availabilityBlockForm.date,
+        availabilityBlockForm.endTime
+      );
+
+      if (!startAtUtc || !endAtUtc || endAtUtc <= startAtUtc) {
+        setError("Defina uma data e um intervalo válido para o bloqueio do instrutor.");
+        return;
+      }
+
+      await createScheduleBlock(token, {
+        scope: 2,
+        instructorId: selectedInstructor.id,
+        title: availabilityBlockForm.title.trim() || "Indisponível",
+        notes: availabilityBlockForm.notes.trim() || undefined,
+        startAtUtc: startAtUtc.toISOString(),
+        endAtUtc: endAtUtc.toISOString()
+      });
+
+      setNotice("Bloqueio semanal do instrutor salvo com sucesso.");
+      setAvailabilityBlockForm((current) => ({ ...current, notes: "" }));
+      await loadData(token);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível salvar o bloqueio do instrutor.");
+    } finally {
+      setIsSavingAvailabilityBlock(false);
+    }
+  }
+
+  async function handleDeleteAvailabilityBlock(blockId: string) {
+    if (!token) {
+      return;
+    }
+
+    try {
+      setError(null);
+      setNotice(null);
+      await deleteScheduleBlock(token, blockId);
+      setNotice("Bloqueio removido da agenda do instrutor.");
+      await loadData(token);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível remover o bloqueio do instrutor.");
+    }
   }
 
   async function handleCreateInvitation(event: React.FormEvent<HTMLFormElement>) {
@@ -650,7 +794,22 @@ export function SchoolAdminPage() {
             </div>
 
             {selectedUser ? (
-              <TextField label="E-mail de acesso" value={selectedUser.email ?? ""} disabled />
+              <div className="space-y-3">
+                <TextField label="E-mail de acesso" value={selectedUser.email ?? ""} disabled />
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    className="rounded-full border border-[var(--q-info)]/25 bg-[var(--q-info-bg)] px-5 py-3 text-sm font-medium uppercase tracking-[0.22em] text-[var(--q-info)] transition hover:opacity-90"
+                    type="button"
+                    onClick={() => void handleResetCollaboratorPassword()}
+                    disabled={isResettingPassword}
+                  >
+                    {isResettingPassword ? "Resetando senha" : "Resetar senha"}
+                  </button>
+                  <div className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)]">
+                    Gera uma nova senha temporária e envia por e-mail ao colaborador.
+                  </div>
+                </div>
+              </div>
             ) : (
               <TextField
                 label="E-mail de acesso"
@@ -663,13 +822,6 @@ export function SchoolAdminPage() {
 
             {!selectedUser ? (
               <div className="grid gap-6 md:grid-cols-2">
-                <TextField
-                  label="Senha inicial"
-                  type="password"
-                  value={createForm.password}
-                  onChange={(value) => setCreateForm((current) => ({ ...current, password: value }))}
-                  required
-                />
                 <label className="grid gap-2 text-sm text-[var(--q-text)]">
                   <span>Função</span>
                   <select
@@ -684,6 +836,9 @@ export function SchoolAdminPage() {
                     ))}
                   </select>
                 </label>
+                <div className="rounded-[22px] border border-[var(--q-info)]/25 bg-[var(--q-info-bg)] px-4 py-3 text-sm text-[var(--q-info)]">
+                  O sistema gera uma senha temporária automaticamente e envia o acesso por e-mail.
+                </div>
               </div>
             ) : (
               <label className="grid max-w-[320px] gap-2 text-sm text-[var(--q-text)]">
@@ -709,10 +864,11 @@ export function SchoolAdminPage() {
                   value={selectedUser ? editForm.hourlyRate : createForm.hourlyRate}
                   onChange={(value) =>
                     selectedUser
-                      ? setEditForm((current) => ({ ...current, hourlyRate: value }))
-                      : setCreateForm((current) => ({ ...current, hourlyRate: value }))
+                      ? setEditForm((current) => ({ ...current, hourlyRate: formatCurrencyMask(value) }))
+                      : setCreateForm((current) => ({ ...current, hourlyRate: formatCurrencyMask(value) }))
                   }
                   required
+                  placeholder="0,00"
                 />
                 <TextField
                   label="Especialidades"
@@ -726,45 +882,249 @@ export function SchoolAdminPage() {
               </div>
             ) : null}
 
+            {resolveRoleName(selectedUser ? editForm.role : createForm.role) === "Admin" ? (
+              <div className="grid gap-6 md:max-w-[320px]">
+                <TextField
+                  label="Salário"
+                  value={selectedUser ? editForm.salaryAmount : createForm.salaryAmount}
+                  onChange={(value) =>
+                    selectedUser
+                      ? setEditForm((current) => ({ ...current, salaryAmount: formatCurrencyMask(value) }))
+                      : setCreateForm((current) => ({ ...current, salaryAmount: formatCurrencyMask(value) }))
+                  }
+                  required
+                  placeholder="0,00"
+                />
+              </div>
+            ) : null}
+
             {resolveRoleName(selectedUser ? editForm.role : createForm.role) === "Instructor" ? (
-              <div className="space-y-3 rounded-[24px] border border-[var(--q-border)] bg-[var(--q-surface)] p-4">
-                <div className="text-sm font-medium text-[var(--q-text)]">Disponibilidade semanal do instrutor</div>
-                <div className="grid gap-3">
-                  {(selectedUser ? editForm.availability : createForm.availability).map((slot, index) => (
-                    <div key={`${slot.dayOfWeek}-${index}`} className="grid gap-3 md:grid-cols-[140px_1fr_1fr]">
-                      <div className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)]">
-                        {slot.label}
+              <div className="space-y-4 rounded-[24px] border border-[var(--q-border)] bg-[var(--q-surface)] p-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-[var(--q-text)]">Agenda semanal do instrutor</div>
+                  <div className="text-sm text-[var(--q-text-2)]">
+                    Em vez de assumir a mesma terça ou quinta em todas as semanas, use a jornada base só como referência e ajuste a agenda real por data.
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-[var(--q-text)]">Jornada base do instrutor</div>
+                      <div className="text-xs text-[var(--q-text-2)]">
+                        Referência padrão para sugestões e validação da agenda.
                       </div>
-                      <TimeField
-                        label="Início"
-                        value={minutesToTime(slot.startMinutesUtc)}
-                        onChange={(value) =>
-                          updateAvailabilityRow(
-                            selectedUser,
-                            index,
-                            "startMinutesUtc",
-                            timeToMinutes(value),
-                            setCreateForm,
-                            setEditForm
-                          )
-                        }
-                      />
-                      <TimeField
-                        label="Fim"
-                        value={minutesToTime(slot.endMinutesUtc)}
-                        onChange={(value) =>
-                          updateAvailabilityRow(
-                            selectedUser,
-                            index,
-                            "endMinutesUtc",
-                            timeToMinutes(value),
-                            setCreateForm,
-                            setEditForm
-                          )
-                        }
-                      />
                     </div>
-                  ))}
+                    <div className="text-xs uppercase tracking-[0.2em] text-[var(--q-muted)]">
+                      Modelo recorrente
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {(selectedUser ? editForm.availability : createForm.availability).map((slot, index) => (
+                      <div
+                        key={`${slot.dayOfWeek}-${index}`}
+                        className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface)] p-4"
+                      >
+                        <div className="mb-3 text-sm font-medium text-[var(--q-text)]">{slot.label}</div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <TimeField
+                            label="Início"
+                            value={minutesToTime(slot.startMinutesUtc)}
+                            onChange={(value) =>
+                              updateAvailabilityRow(
+                                selectedUser,
+                                index,
+                                "startMinutesUtc",
+                                timeToMinutes(value),
+                                setCreateForm,
+                                setEditForm
+                              )
+                            }
+                          />
+                          <TimeField
+                            label="Fim"
+                            value={minutesToTime(slot.endMinutesUtc)}
+                            onChange={(value) =>
+                              updateAvailabilityRow(
+                                selectedUser,
+                                index,
+                                "endMinutesUtc",
+                                timeToMinutes(value),
+                                setCreateForm,
+                                setEditForm
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-[var(--q-text)]">Semana operacional</div>
+                      <div className="text-xs text-[var(--q-text-2)]">
+                        Navegue por semana e bloqueie indisponibilidades reais do instrutor, como em uma agenda.
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        className="rounded-full border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[var(--q-text)]"
+                        type="button"
+                        onClick={() => setAvailabilityWeekStart((current) => addDays(current, -7))}
+                      >
+                        Semana anterior
+                      </button>
+                      <button
+                        className="rounded-full border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[var(--q-text)]"
+                        type="button"
+                        onClick={() => setAvailabilityWeekStart(startOfWeek(new Date()))}
+                      >
+                        Semana atual
+                      </button>
+                      <button
+                        className="rounded-full border border-[var(--q-border)] bg-[var(--q-surface)] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[var(--q-text)]"
+                        type="button"
+                        onClick={() => setAvailabilityWeekStart((current) => addDays(current, 7))}
+                      >
+                        Próxima semana
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 text-sm font-medium text-[var(--q-text)]">
+                    {formatWeekRangeLabel(availabilityWeekStart)}
+                  </div>
+
+                  {selectedInstructor ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 xl:grid-cols-[1.2fr_0.8fr]">
+                        <div className="overflow-x-auto rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface)] p-3">
+                          <div className="grid min-w-[780px] grid-cols-7 gap-3">
+                            {availabilityWeekDays.map((day) => (
+                              <div
+                                key={day.dateKey}
+                                className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] p-3"
+                              >
+                                <div className="mb-3 border-b border-[var(--q-border)] pb-3">
+                                  <div className="text-xs uppercase tracking-[0.2em] text-[var(--q-muted)]">
+                                    {day.weekdayLabel}
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium text-[var(--q-text)]">
+                                    {day.dateLabel}
+                                  </div>
+                                  <div className="mt-2 rounded-xl bg-[var(--q-success-bg)] px-3 py-2 text-xs text-[var(--q-success)]">
+                                    Base: {describeBaseAvailabilityForDay(selectedUser ? editForm.availability : createForm.availability, day.date)}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {selectedInstructorBlocksInWeek.filter((block) => isSameLocalDay(block.startAtUtc, day.date)).length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-[var(--q-divider)] px-3 py-4 text-xs text-[var(--q-text-2)]">
+                                      Sem bloqueios nesta data.
+                                    </div>
+                                  ) : (
+                                    selectedInstructorBlocksInWeek
+                                      .filter((block) => isSameLocalDay(block.startAtUtc, day.date))
+                                      .map((block) => (
+                                        <div
+                                          key={block.id}
+                                          className="rounded-xl border border-[var(--q-danger)]/20 bg-[var(--q-danger-bg)] px-3 py-3"
+                                        >
+                                          <div className="text-xs uppercase tracking-[0.2em] text-[var(--q-danger)]">
+                                            Bloqueado
+                                          </div>
+                                          <div className="mt-1 text-sm font-medium text-[var(--q-text)]">
+                                            {formatBlockWindow(block.startAtUtc, block.endAtUtc)}
+                                          </div>
+                                          <div className="mt-1 text-xs text-[var(--q-text-2)]">{block.title}</div>
+                                          {block.notes ? (
+                                            <div className="mt-1 text-xs text-[var(--q-text-2)]">{block.notes}</div>
+                                          ) : null}
+                                          <button
+                                            className="mt-3 rounded-full border border-[var(--q-danger)]/25 bg-white px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-[var(--q-danger)]"
+                                            type="button"
+                                            onClick={() => void handleDeleteAvailabilityBlock(block.id)}
+                                          >
+                                            Remover
+                                          </button>
+                                        </div>
+                                      ))
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface)] p-4">
+                          <div className="text-sm font-medium text-[var(--q-text)]">Bloquear horário da semana</div>
+                          <div className="mt-1 text-xs text-[var(--q-text-2)]">
+                            Use este bloco para férias, compromissos, vento ruim, manutenção pessoal ou qualquer indisponibilidade pontual.
+                          </div>
+
+                          <div className="mt-4 grid gap-3">
+                            <TextField
+                              label="Data"
+                              type="date"
+                              value={availabilityBlockForm.date}
+                              onChange={(value) =>
+                                setAvailabilityBlockForm((current) => ({ ...current, date: value }))
+                              }
+                            />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <TimeField
+                                label="Início"
+                                value={availabilityBlockForm.startTime}
+                                onChange={(value) =>
+                                  setAvailabilityBlockForm((current) => ({ ...current, startTime: value }))
+                                }
+                              />
+                              <TimeField
+                                label="Fim"
+                                value={availabilityBlockForm.endTime}
+                                onChange={(value) =>
+                                  setAvailabilityBlockForm((current) => ({ ...current, endTime: value }))
+                                }
+                              />
+                            </div>
+                            <TextField
+                              label="Título"
+                              value={availabilityBlockForm.title}
+                              onChange={(value) =>
+                                setAvailabilityBlockForm((current) => ({ ...current, title: value }))
+                              }
+                              placeholder="Ex.: Atendimento externo"
+                            />
+                            <TextField
+                              label="Observação"
+                              value={availabilityBlockForm.notes}
+                              onChange={(value) =>
+                                setAvailabilityBlockForm((current) => ({ ...current, notes: value }))
+                              }
+                              placeholder="Motivo do bloqueio"
+                            />
+                            <button
+                              className="rounded-full border border-transparent px-5 py-3 text-sm font-medium uppercase tracking-[0.24em] text-white shadow-[0_16px_34px_rgba(18,84,135,0.18)] transition hover:opacity-95"
+                              style={{ backgroundImage: "var(--q-grad-brand)", backgroundColor: "var(--q-navy)" }}
+                              type="button"
+                              onClick={() => void handleCreateAvailabilityBlock()}
+                              disabled={isSavingAvailabilityBlock}
+                            >
+                              {isSavingAvailabilityBlock ? "Salvando" : "Bloquear horário"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-[var(--q-divider)] px-4 py-5 text-sm text-[var(--q-text-2)]">
+                      Salve o colaborador primeiro para abrir a agenda semanal real do instrutor.
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
@@ -798,18 +1158,9 @@ export function SchoolAdminPage() {
                 Conta ativa
               </label>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)]">
-                <input
-                  checked={selectedUser ? editForm.mustChangePassword : createForm.mustChangePassword}
-                  onChange={(event) =>
-                    selectedUser
-                      ? setEditForm((current) => ({ ...current, mustChangePassword: event.target.checked }))
-                      : setCreateForm((current) => ({ ...current, mustChangePassword: event.target.checked }))
-                  }
-                  type="checkbox"
-                />
-                Exigir troca de senha
-              </label>
+              <div className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)]">
+                A troca de senha é obrigatória no primeiro acesso e sempre após o reset.
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -1136,6 +1487,18 @@ function formatCurrencyInput(value: number) {
   return value.toFixed(2).replace(".", ",");
 }
 
+function formatCurrencyMask(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) {
+    return "";
+  }
+
+  const integer = digits.slice(0, -2) || "0";
+  const cents = digits.slice(-2).padStart(2, "0");
+  const normalizedInteger = Number(integer).toLocaleString("pt-BR");
+  return `${normalizedInteger},${cents}`;
+}
+
 function parseCurrencyInput(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".").trim();
   const parsed = Number(normalized);
@@ -1260,4 +1623,83 @@ function updateAvailabilityRow(
   }
 
   setCreateForm((current) => ({ ...current, availability: apply(current.availability) }));
+}
+
+function startOfWeek(value: Date) {
+  const normalized = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const day = normalized.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  normalized.setDate(normalized.getDate() + diff);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toDateInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildWeekDays(weekStart: Date) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(weekStart, index);
+    return {
+      date,
+      dateKey: toDateInputValue(date),
+      weekdayLabel: new Intl.DateTimeFormat("pt-BR", { weekday: "short" }).format(date).replace(".", ""),
+      dateLabel: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(date)
+    };
+  });
+}
+
+function isSameLocalDay(value: string, date: Date) {
+  const parsed = new Date(value);
+  return (
+    parsed.getFullYear() === date.getFullYear() &&
+    parsed.getMonth() === date.getMonth() &&
+    parsed.getDate() === date.getDate()
+  );
+}
+
+function isWithinWeek(value: string, weekStart: Date) {
+  const parsed = new Date(value);
+  const from = startOfWeek(weekStart).getTime();
+  const to = addDays(startOfWeek(weekStart), 7).getTime();
+  return parsed.getTime() >= from && parsed.getTime() < to;
+}
+
+function formatWeekRangeLabel(weekStart: Date) {
+  const weekEnd = addDays(weekStart, 6);
+  return `${formatDate(weekStart.toISOString())} a ${formatDate(weekEnd.toISOString())}`;
+}
+
+function describeBaseAvailabilityForDay(slots: InstructorAvailabilitySlot[], date: Date) {
+  const daySlot = slots.find((item) => item.dayOfWeek === date.getDay());
+  if (!daySlot) {
+    return "Sem padrão";
+  }
+
+  return `${minutesToTime(daySlot.startMinutesUtc)} às ${minutesToTime(daySlot.endMinutesUtc)}`;
+}
+
+function combineDateAndTimeToUtc(dateValue: string, timeValue: string) {
+  if (!dateValue || !timeValue) {
+    return null;
+  }
+
+  const parsed = new Date(`${dateValue}T${timeValue}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatBlockWindow(startAtUtc: string, endAtUtc: string) {
+  const start = new Date(startAtUtc);
+  const end = new Date(endAtUtc);
+  return `${start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} às ${end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }

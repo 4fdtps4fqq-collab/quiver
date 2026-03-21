@@ -83,6 +83,7 @@ public sealed class SchoolsDbContext : DbContext
             entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Cpf).HasMaxLength(14);
             entity.Property(x => x.Phone).HasMaxLength(50);
+            entity.Property(x => x.SalaryAmount).HasColumnType("numeric(12,2)");
             entity.Property(x => x.PostalCode).HasMaxLength(9);
             entity.Property(x => x.Street).HasMaxLength(200);
             entity.Property(x => x.StreetNumber).HasMaxLength(20);

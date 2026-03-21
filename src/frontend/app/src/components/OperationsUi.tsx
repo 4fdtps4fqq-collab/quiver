@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { translateLabel } from "../lib/localization";
 
 type CardProps = {
@@ -77,9 +78,44 @@ export function LoadingBlock({ label = "Carregando dados" }: { label?: string })
 }
 
 export function ErrorBlock({ message }: { message: string }) {
-  return (
-    <div className="rounded-[24px] border border-[var(--q-danger)]/30 bg-[var(--q-danger-bg)] px-4 py-4 text-sm text-[var(--q-danger)]">
-      {message}
-    </div>
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    setDismissed(false);
+  }, [message]);
+
+  if (!message || dismissed || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/30 px-4 py-6 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-[28px] border border-[var(--q-danger)]/30 bg-[var(--q-surface)] p-5 shadow-[0_28px_70px_rgba(15,23,42,0.28)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.24em] text-[var(--q-danger)]">Atenção</div>
+            <div className="mt-3 text-sm leading-6 text-[var(--q-text)]">{message}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--q-border)] bg-[var(--q-surface-2)] text-lg text-[var(--q-text-2)] transition hover:opacity-85"
+            aria-label="Fechar mensagem"
+          >
+            ×
+          </button>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="rounded-2xl bg-[var(--q-navy)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-95"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useState, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Link } from "react-router-dom";
 import { useSession } from "../auth/SessionContext";
+import { ErrorBlock } from "../components/OperationsUi";
 import {
   cancelStudentLesson,
   confirmStudentLessonPresence,
@@ -554,8 +555,4 @@ function LoadingBlock({ label }: { label: string }) {
 
 function SuccessBlock({ message }: { message: string }) {
   return <div className="rounded-[24px] border border-emerald-300/60 bg-emerald-100/80 px-4 py-3 text-sm text-emerald-950">{message}</div>;
-}
-
-function ErrorBlock({ message }: { message: string }) {
-  return <div className="rounded-[24px] border border-rose-300/60 bg-rose-100/80 px-4 py-3 text-sm text-rose-950">{message}</div>;
 }

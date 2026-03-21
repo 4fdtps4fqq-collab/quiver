@@ -59,12 +59,14 @@ export function SystemSchoolsDirectoryPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [schoolPostalCodeFeedback, setSchoolPostalCodeFeedback] = useState<string | null>(null);
   const [ownerPostalCodeFeedback, setOwnerPostalCodeFeedback] = useState<string | null>(null);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([]);
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
+    appendLog("Sessão SystemAdmin detectada. Iniciando carregamento da consulta de escolas.");
     void loadSchools(token);
   }, [token]);
 
@@ -72,24 +74,28 @@ export function SystemSchoolsDirectoryPage() {
     try {
       setIsLoading(true);
       setError(null);
+      appendLog("Chamando getSystemSchools para listar as escolas.");
       const items = await getSystemSchools(currentToken);
+      appendLog(`Lista de escolas carregada com sucesso. Total: ${items.length}.`);
       setSchools(items);
-      if (!selectedSchoolId && items.length > 0) {
-        await handleSelectSchool(items[0].id, currentToken);
-      } else if (selectedSchoolId && !items.some((item) => item.id === selectedSchoolId)) {
+      if (selectedSchoolId && !items.some((item) => item.id === selectedSchoolId)) {
+        appendLog(`A escola selecionada (${selectedSchoolId}) não está mais na lista. Limpando a ficha.`);
         setSelectedSchoolId(null);
         setSelectedSchool(null);
         setForm(emptyForm);
       }
     } catch (nextError) {
+      appendLog(`Falha ao listar escolas: ${nextError instanceof Error ? nextError.message : "erro desconhecido"}.`);
       setError(nextError instanceof Error ? nextError.message : "Não foi possível carregar as escolas.");
     } finally {
       setIsLoading(false);
+      appendLog("Finalizado o carregamento da lista de escolas.");
     }
   }
 
   async function handleSelectSchool(schoolId: string, currentToken = token) {
     if (!currentToken) {
+      appendLog("Tentativa de carregar ficha sem token válido.");
       return;
     }
 
@@ -97,7 +103,9 @@ export function SystemSchoolsDirectoryPage() {
       setIsLoadingDetails(true);
       setError(null);
       setSuccessMessage(null);
+      appendLog(`Carregando ficha detalhada da escola ${schoolId}.`);
       const school = await getSystemSchoolDetails(currentToken, schoolId);
+      appendLog(`Ficha da escola ${school.displayName || schoolId} carregada com sucesso.`);
       setSelectedSchoolId(schoolId);
       setSelectedSchool(school);
       setForm({
@@ -133,9 +141,11 @@ export function SystemSchoolsDirectoryPage() {
       setSchoolPostalCodeFeedback(null);
       setOwnerPostalCodeFeedback(null);
     } catch (nextError) {
+      appendLog(`Falha ao carregar ficha da escola ${schoolId}: ${nextError instanceof Error ? nextError.message : "erro desconhecido"}.`);
       setError(nextError instanceof Error ? nextError.message : "Não foi possível carregar os detalhes da escola.");
     } finally {
       setIsLoadingDetails(false);
+      appendLog(`Finalizado o carregamento da ficha da escola ${schoolId}.`);
     }
   }
 
@@ -149,10 +159,13 @@ export function SystemSchoolsDirectoryPage() {
       setIsSaving(true);
       setError(null);
       setSuccessMessage(null);
+      appendLog(`Salvando alterações da escola ${selectedSchoolId}.`);
       await updateSystemSchool(token, selectedSchoolId, form);
+      appendLog(`Escola ${selectedSchoolId} atualizada com sucesso.`);
       setSuccessMessage("Escola atualizada com sucesso.");
       await Promise.all([loadSchools(token), handleSelectSchool(selectedSchoolId, token)]);
     } catch (nextError) {
+      appendLog(`Falha ao atualizar escola ${selectedSchoolId}: ${nextError instanceof Error ? nextError.message : "erro desconhecido"}.`);
       setError(nextError instanceof Error ? nextError.message : "Não foi possível atualizar a escola.");
     } finally {
       setIsSaving(false);
@@ -176,13 +189,16 @@ export function SystemSchoolsDirectoryPage() {
       setIsDeleting(true);
       setError(null);
       setSuccessMessage(null);
+      appendLog(`Excluindo a escola ${selectedSchoolId}.`);
       await deleteSystemSchool(token, selectedSchoolId);
+      appendLog(`Escola ${selectedSchoolId} excluída com sucesso.`);
       setSuccessMessage("Escola excluída com sucesso.");
       setSelectedSchoolId(null);
       setSelectedSchool(null);
       setForm(emptyForm);
       await loadSchools(token);
     } catch (nextError) {
+      appendLog(`Falha ao excluir escola ${selectedSchoolId}: ${nextError instanceof Error ? nextError.message : "erro desconhecido"}.`);
       setError(nextError instanceof Error ? nextError.message : "Não foi possível excluir a escola.");
     } finally {
       setIsDeleting(false);
@@ -201,13 +217,16 @@ export function SystemSchoolsDirectoryPage() {
       setIsSaving(true);
       setError(null);
       setSuccessMessage(null);
+      appendLog(`Alterando status da escola ${selectedSchoolId} para ${nextStatus}.`);
       await updateSystemSchool(token, selectedSchoolId, {
         ...form,
         status: nextStatus
       });
+      appendLog(`Status da escola ${selectedSchoolId} atualizado para ${nextStatus}.`);
       setSuccessMessage(`Escola ${nextStatusLabel} com sucesso.`);
       await Promise.all([loadSchools(token), handleSelectSchool(selectedSchoolId, token)]);
     } catch (nextError) {
+      appendLog(`Falha ao alterar status da escola ${selectedSchoolId}: ${nextError instanceof Error ? nextError.message : "erro desconhecido"}.`);
       setError(nextError instanceof Error ? nextError.message : "Não foi possível atualizar o status da escola.");
     } finally {
       setIsSaving(false);
@@ -233,7 +252,13 @@ export function SystemSchoolsDirectoryPage() {
 
     const logoDataUrl = await readFileAsDataUrl(file);
     setError(null);
+    appendLog(`Logo carregada localmente para a escola ${selectedSchoolId ?? "nova seleção"}.`);
     setForm((current) => ({ ...current, logoDataUrl }));
+  }
+
+  function appendLog(message: string) {
+    const timestamp = new Date().toLocaleString("pt-BR");
+    setExecutionLogs((current) => [`[${timestamp}] ${message}`, ...current].slice(0, 24));
   }
 
   const normalizedSearch = search.trim().toLowerCase();
@@ -298,7 +323,10 @@ export function SystemSchoolsDirectoryPage() {
                     <StatusBadge value={school.status} />
                   </div>
                   <div className="mt-3 text-xs text-[var(--q-muted)]">
-                    Owner inicial: {school.ownerName ?? "Não identificado"}
+                    Responsável: {school.ownerName ?? "Não identificado"}
+                  </div>
+                  <div className="mt-1 text-xs text-[var(--q-text-2)]">
+                    Email: {school.ownerEmail ?? "Não informado"}
                   </div>
                 </button>
               ))}
@@ -513,10 +541,24 @@ export function SystemSchoolsDirectoryPage() {
                   {isDeleting ? "Excluindo..." : "Excluir escola"}
                 </button>
               </div>
-            </form>
-          )}
+          </form>
+        )}
         </GlassCard>
       </div>
+
+      <GlassCard title="Log de execução" description="Rastreamento técnico temporário da tela de consulta de escolas.">
+        <div className="space-y-2 rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4 font-mono text-xs text-[var(--q-text)]">
+          {executionLogs.length > 0 ? (
+            executionLogs.map((entry, index) => (
+              <div key={`${entry}-${index}`} className="break-all">
+                {entry}
+              </div>
+            ))
+          ) : (
+            <div>Nenhum log registrado ainda.</div>
+          )}
+        </div>
+      </GlassCard>
     </div>
   );
 }

@@ -57,7 +57,7 @@ export function PermissionMatrix({ role, value, onChange }: PermissionMatrixProp
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {permissionGroups.map((group) => (
           <div key={group.key} className="rounded-[20px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
             <div className="text-sm font-semibold text-[var(--q-text)]">{group.title}</div>

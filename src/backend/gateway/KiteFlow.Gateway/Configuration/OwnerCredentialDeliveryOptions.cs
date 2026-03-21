@@ -21,4 +21,6 @@ public sealed class OwnerCredentialDeliveryOptions
     public string? SmtpPassword { get; set; }
 
     public bool SmtpUseSsl { get; set; } = true;
+
+    public string PublicLoginUrl { get; set; } = "http://localhost:5174/login";
 }

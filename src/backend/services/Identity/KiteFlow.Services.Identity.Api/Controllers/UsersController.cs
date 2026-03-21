@@ -113,7 +113,8 @@ public sealed class UsersController : ControllerBase
                     FullName: string.IsNullOrWhiteSpace(request.FullName) ? user.Email : request.FullName.Trim(),
                     Email: user.Email,
                     ScopeLabel: string.IsNullOrWhiteSpace(request.ScopeLabel) ? schoolId.ToString() : request.ScopeLabel.Trim(),
-                    TemporaryPassword: request.Password),
+                    TemporaryPassword: request.Password,
+                    OnboardingUrl: request.OnboardingUrl),
                 CancellationToken.None);
         }
 
@@ -267,7 +268,8 @@ public sealed class UsersController : ControllerBase
                     FullName: string.IsNullOrWhiteSpace(request.FullName) ? user.Email : request.FullName.Trim(),
                     Email: user.Email,
                     ScopeLabel: string.IsNullOrWhiteSpace(request.ScopeLabel) ? schoolId.ToString() : request.ScopeLabel.Trim(),
-                    TemporaryPassword: request.TemporaryPassword),
+                    TemporaryPassword: request.TemporaryPassword,
+                    OnboardingUrl: request.OnboardingUrl),
                 cancellationToken);
         }
 
@@ -306,7 +308,8 @@ public sealed class UsersController : ControllerBase
         bool IsActive,
         bool DeliverTemporaryPasswordByEmail = false,
         string? FullName = null,
-        string? ScopeLabel = null);
+        string? ScopeLabel = null,
+        string? OnboardingUrl = null);
 
     public sealed record UpdateUserRequest(
         PlatformRole Role,
@@ -320,7 +323,8 @@ public sealed class UsersController : ControllerBase
         bool DeliverByEmail = true,
         string? Email = null,
         string? FullName = null,
-        string? ScopeLabel = null);
+        string? ScopeLabel = null,
+        string? OnboardingUrl = null);
 
     private static string NormalizeEmail(string? email)
         => (email ?? string.Empty).Trim().ToLowerInvariant();

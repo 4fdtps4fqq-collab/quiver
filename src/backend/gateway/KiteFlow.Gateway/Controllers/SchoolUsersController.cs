@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -55,6 +56,9 @@ public sealed class SchoolUsersController : ControllerBase
                 IdentityUserId: identityUserId,
                 FullName: profile.GetProperty("fullName").GetString() ?? string.Empty,
                 Phone: profile.TryGetProperty("phone", out var phone) ? phone.GetString() : null,
+                SalaryAmount: profile.TryGetProperty("salaryAmount", out var salaryAmount) && salaryAmount.ValueKind != JsonValueKind.Null
+                    ? salaryAmount.GetDecimal()
+                    : null,
                 AvatarUrl: profile.TryGetProperty("avatarUrl", out var avatar) ? avatar.GetString() : null,
                 ProfileIsActive: profile.GetProperty("isActive").GetBoolean(),
                 Email: account.ValueKind == JsonValueKind.Undefined ? null : account.GetProperty("email").GetString(),
@@ -78,17 +82,24 @@ public sealed class SchoolUsersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateSchoolUserRequest request, CancellationToken cancellationToken)
     {
+        var temporaryPassword = GenerateTemporaryPassword();
+        var scopeLabel = $"colaborador-escola-{GetCurrentSchoolId()}";
+        var onboardingUrl = GetCollaboratorOnboardingUrl();
         var identityClient = CreateAuthorizedClient("identity");
         var createUserResponse = await identityClient.PostAsJsonAsync(
             "/api/v1/users",
             new
             {
                 request.Email,
-                request.Password,
+                Password = temporaryPassword,
                 request.Role,
                 request.Permissions,
-                request.MustChangePassword,
-                request.IsActive
+                MustChangePassword = true,
+                request.IsActive,
+                DeliverTemporaryPasswordByEmail = false,
+                request.FullName,
+                ScopeLabel = scopeLabel,
+                OnboardingUrl = onboardingUrl
             },
             cancellationToken);
 
@@ -112,6 +123,7 @@ public sealed class SchoolUsersController : ControllerBase
                 identityUserId,
                 request.FullName,
                 request.Phone,
+                request.SalaryAmount,
                 request.AvatarUrl,
                 request.IsActive
             },
@@ -143,6 +155,45 @@ public sealed class SchoolUsersController : ControllerBase
             }
         }
 
+        var financialSyncResult = await SyncAdministrativeCompensationAsync(
+            schoolId: GetCurrentSchoolId(),
+            identityUserId: identityUserId.Value,
+            fullName: request.FullName,
+            role: request.Role,
+            salaryAmount: request.SalaryAmount,
+            isActive: request.IsActive,
+            cancellationToken);
+
+        if (financialSyncResult is not null)
+        {
+            return financialSyncResult;
+        }
+
+        var deliveryResponse = await identityClient.PostAsJsonAsync(
+            $"/api/v1/users/{identityUserId.Value}/reset-password",
+            new
+            {
+                temporaryPassword,
+                mustChangePassword = true,
+                deliverByEmail = true,
+                request.Email,
+                request.FullName,
+                ScopeLabel = scopeLabel,
+                OnboardingUrl = onboardingUrl
+            },
+            cancellationToken);
+
+        if (!deliveryResponse.IsSuccessStatusCode)
+        {
+            return await BuildErrorResult(
+                "identity",
+                deliveryResponse,
+                cancellationToken,
+                "A conta foi criada, mas o envio do acesso inicial do colaborador por e-mail falhou.");
+        }
+
+        var deliveryPayload = await ReadJsonAsync(deliveryResponse, cancellationToken);
+
         return Ok(new
         {
             profileId = createdProfile?.GetProperty("id").GetGuid(),
@@ -153,7 +204,9 @@ public sealed class SchoolUsersController : ControllerBase
             request.Phone,
             request.AvatarUrl,
             request.IsActive,
-            request.MustChangePassword
+            mustChangePassword = true,
+            deliveryMode = deliveryPayload?.TryGetProperty("deliveryMode", out var createDeliveryMode) == true ? createDeliveryMode.GetString() : null,
+            outboxFilePath = deliveryPayload?.TryGetProperty("outboxFilePath", out var createOutbox) == true ? createOutbox.GetString() : null
         });
     }
 
@@ -196,6 +249,7 @@ public sealed class SchoolUsersController : ControllerBase
             {
                 request.FullName,
                 request.Phone,
+                request.SalaryAmount,
                 request.AvatarUrl,
                 request.IsActive
             },
@@ -214,6 +268,20 @@ public sealed class SchoolUsersController : ControllerBase
         if (syncResult is not null)
         {
             return syncResult;
+        }
+
+        var financialSyncResult = await SyncAdministrativeCompensationAsync(
+            schoolId: GetCurrentSchoolId(),
+            identityUserId: identityUserId,
+            fullName: request.FullName,
+            role: request.Role,
+            salaryAmount: request.SalaryAmount,
+            isActive: request.IsActive,
+            cancellationToken);
+
+        if (financialSyncResult is not null)
+        {
+            return financialSyncResult;
         }
 
         return Ok();
@@ -417,14 +485,19 @@ public sealed class SchoolUsersController : ControllerBase
         [FromBody] ResetSchoolUserPasswordRequest request,
         CancellationToken cancellationToken)
     {
+        var temporaryPassword = GenerateTemporaryPassword();
         var identityClient = CreateAuthorizedClient("identity");
         var response = await identityClient.PostAsJsonAsync(
             $"/api/v1/users/{identityUserId}/reset-password",
             new
             {
-                temporaryPassword = request.TemporaryPassword,
-                mustChangePassword = request.MustChangePassword,
-                deliverByEmail = request.DeliverByEmail
+                temporaryPassword,
+                mustChangePassword = true,
+                deliverByEmail = request.DeliverByEmail,
+                request.Email,
+                request.FullName,
+                ScopeLabel = $"colaborador-escola-{GetCurrentSchoolId()}",
+                OnboardingUrl = GetCollaboratorOnboardingUrl()
             },
             cancellationToken);
 
@@ -493,6 +566,12 @@ public sealed class SchoolUsersController : ControllerBase
         }
 
         throw new InvalidOperationException("Não foi possível identificar a escola atual no token.");
+    }
+
+    private string GetCollaboratorOnboardingUrl()
+    {
+        var url = _configuration["OwnerCredentialDelivery:PublicLoginUrl"];
+        return string.IsNullOrWhiteSpace(url) ? "http://localhost:5174/login" : url;
     }
 
     private async Task<IActionResult?> ProvisionStudentAsync(
@@ -599,6 +678,45 @@ public sealed class SchoolUsersController : ControllerBase
             "A conta foi atualizada, mas o sincronismo acadêmico do colaborador falhou.");
     }
 
+    private async Task<IActionResult?> SyncAdministrativeCompensationAsync(
+        Guid schoolId,
+        Guid identityUserId,
+        string fullName,
+        int role,
+        decimal? salaryAmount,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var isAdministrative = role == 5;
+        var financeClient = CreateInternalClient("finance");
+        var response = await financeClient.PostAsJsonAsync(
+            "/api/v1/internal/finance/expenses/automation",
+            new
+            {
+                SchoolId = schoolId,
+                SourceType = "SchoolUserSalary",
+                SourceId = identityUserId,
+                Category = 3,
+                Amount = isAdministrative ? decimal.Round(Math.Max(salaryAmount ?? 0m, 0m), 2) : 0m,
+                OccurredAtUtc = DateTime.UtcNow,
+                Description = $"Salário administrativo - {fullName.Trim()}",
+                Vendor = (string?)null,
+                IsActive = isAdministrative && isActive && salaryAmount.GetValueOrDefault() > 0m
+            },
+            cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await BuildErrorResult(
+            "finance",
+            response,
+            cancellationToken,
+            "O colaborador foi salvo, mas a sincronização da remuneração administrativa com o financeiro falhou.");
+    }
+
     private async Task<IActionResult?> EnsureLinkedUserCanBeDeactivatedAsync(Guid identityUserId, CancellationToken cancellationToken)
     {
         var academicsClient = CreateInternalClient("academics");
@@ -663,13 +781,43 @@ public sealed class SchoolUsersController : ControllerBase
         return document.RootElement.Clone();
     }
 
+    private static string GenerateTemporaryPassword()
+    {
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string lower = "abcdefghijkmnopqrstuvwxyz";
+        const string digits = "23456789";
+        const string symbols = "!@#$%&*?";
+
+        var all = $"{upper}{lower}{digits}{symbols}";
+        var chars = new List<char>
+        {
+            upper[RandomNumberGenerator.GetInt32(upper.Length)],
+            lower[RandomNumberGenerator.GetInt32(lower.Length)],
+            digits[RandomNumberGenerator.GetInt32(digits.Length)],
+            symbols[RandomNumberGenerator.GetInt32(symbols.Length)]
+        };
+
+        while (chars.Count < 12)
+        {
+            chars.Add(all[RandomNumberGenerator.GetInt32(all.Length)]);
+        }
+
+        for (var index = chars.Count - 1; index > 0; index--)
+        {
+            var swapIndex = RandomNumberGenerator.GetInt32(index + 1);
+            (chars[index], chars[swapIndex]) = (chars[swapIndex], chars[index]);
+        }
+
+        return new string(chars.ToArray());
+    }
+
     public sealed record CreateSchoolUserRequest(
         string FullName,
         string Email,
-        string Password,
         int Role,
         IReadOnlyCollection<string>? Permissions,
         string? Phone,
+        decimal? SalaryAmount,
         string? AvatarUrl,
         bool IsActive,
         bool MustChangePassword);
@@ -680,6 +828,7 @@ public sealed class SchoolUsersController : ControllerBase
         int Role,
         IReadOnlyCollection<string>? Permissions,
         string? Phone,
+        decimal? SalaryAmount,
         string? AvatarUrl,
         bool IsActive,
         bool MustChangePassword);
@@ -698,15 +847,16 @@ public sealed class SchoolUsersController : ControllerBase
         string Password);
 
     public sealed record ResetSchoolUserPasswordRequest(
-        string TemporaryPassword,
-        bool MustChangePassword = true,
-        bool DeliverByEmail = true);
+        bool DeliverByEmail = true,
+        string? Email = null,
+        string? FullName = null);
 
     public sealed record SchoolUserListItem(
         Guid ProfileId,
         Guid IdentityUserId,
         string FullName,
         string? Phone,
+        decimal? SalaryAmount,
         string? AvatarUrl,
         bool ProfileIsActive,
         string? Email,

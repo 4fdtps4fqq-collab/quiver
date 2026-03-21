@@ -3,10 +3,10 @@ import { useSession } from "../auth/SessionContext";
 import { PageHero } from "../components/PageHero";
 import { ErrorBlock, GlassCard, LoadingBlock, StatusBadge } from "../components/OperationsUi";
 import { formatCurrency, formatMinutes } from "../lib/formatters";
-import { createCourse, getCourses, type Course } from "../lib/platform-api";
+import { createCourse, getCourses, type Course, updateCourse } from "../lib/platform-api";
+import { formatCurrencyInput, formatCurrencyMask, parseCurrencyInput } from "./school-admin-shared";
 
 const levelOptions = [
-  { value: 1, label: "Descoberta" },
   { value: 2, label: "Iniciante" },
   { value: 3, label: "Intermediário" },
   { value: 4, label: "Avançado" }
@@ -14,9 +14,9 @@ const levelOptions = [
 
 const initialForm = {
   name: "",
-  level: "1",
+  level: "2",
   totalHours: "6",
-  price: "0"
+  price: ""
 };
 
 export function CoursesPage() {
@@ -27,6 +27,7 @@ export function CoursesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -48,6 +49,26 @@ export function CoursesPage() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedCourseId) {
+      setForm(initialForm);
+      return;
+    }
+
+    const current = courses.find((item) => item.id === selectedCourseId);
+    if (!current) {
+      setForm(initialForm);
+      return;
+    }
+
+    setForm({
+      name: current.name,
+      level: String(mapLevelLabelToValue(current.level)),
+      totalHours: String(current.totalHours),
+      price: formatCurrencyInput(current.price)
+    });
+  }, [courses, selectedCourseId]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) {
@@ -57,16 +78,59 @@ export function CoursesPage() {
     try {
       setIsSaving(true);
       setError(null);
-      await createCourse(token, {
-        name: form.name,
-        level: Number(form.level),
-        totalHours: Number(form.totalHours),
-        price: Number(form.price)
-      });
+      setNotice(null);
+      if (selectedCourseId) {
+        await updateCourse(token, selectedCourseId, {
+          name: form.name,
+          level: Number(form.level),
+          totalHours: Number(form.totalHours),
+          price: parseCurrencyInput(form.price),
+          isActive: true
+        });
+        setNotice("Curso atualizado com sucesso.");
+        await loadCourses(token);
+      } else {
+        await createCourse(token, {
+          name: form.name,
+          level: Number(form.level),
+          totalHours: Number(form.totalHours),
+          price: parseCurrencyInput(form.price)
+        });
+        setNotice("Curso cadastrado com sucesso.");
+        await loadCourses(token);
+      }
+
       setForm(initialForm);
-      await loadCourses(token);
+      setSelectedCourseId("");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Não foi possível salvar o curso.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleInactivateCourse() {
+    if (!token || !selectedCourse) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      setNotice(null);
+      await updateCourse(token, selectedCourse.id, {
+        name: selectedCourse.name,
+        level: mapLevelLabelToValue(selectedCourse.level),
+        totalHours: selectedCourse.totalHours,
+        price: selectedCourse.price,
+        isActive: false
+      });
+      setNotice("Curso inativado com sucesso.");
+      await loadCourses(token);
+      setSelectedCourseId("");
+      setForm(initialForm);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Não foi possível inativar o curso.");
     } finally {
       setIsSaving(false);
     }
@@ -76,7 +140,7 @@ export function CoursesPage() {
   const averagePrice =
     courses.length === 0 ? 0 : courses.reduce((sum, item) => sum + item.price, 0) / courses.length;
   const totalCapacityMinutes = courses.reduce((sum, item) => sum + item.totalMinutes, 0);
-  const selectedCourse = courses.find((item) => item.id === selectedCourseId) ?? courses[0] ?? null;
+  const selectedCourse = courses.find((item) => item.id === selectedCourseId) ?? null;
 
   return (
     <div className="space-y-6">
@@ -94,9 +158,10 @@ export function CoursesPage() {
 
       {isLoading ? <LoadingBlock label="Carregando cursos" /> : null}
       {error ? <ErrorBlock message={error} /> : null}
+      {notice ? <div className="rounded-[24px] border border-[var(--q-info)]/30 bg-[var(--q-info-bg)] px-5 py-4 text-sm text-[var(--q-info)]">{notice}</div> : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-        <GlassCard title="Novo curso" description="Defina o pacote comercial preservando nível, carga horária e preço.">
+        <GlassCard title={selectedCourse ? "Ficha do curso" : "Novo curso"} description="Defina o pacote comercial preservando nível, carga horária e valor.">
           <form className="grid gap-3" onSubmit={handleSubmit}>
             <label className="grid gap-2 text-sm text-[var(--q-text)]">
               <span>Nome do curso</span>
@@ -135,24 +200,36 @@ export function CoursesPage() {
               />
             </label>
             <label className="grid gap-2 text-sm text-[var(--q-text)]">
-              <span>Preço do curso</span>
+              <span>Valor</span>
               <input
                 className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)] outline-none"
                 placeholder="Valor que será congelado na matrícula"
-                type="number"
-                min="0"
-                step="0.01"
                 value={form.price}
-                onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
+                onChange={(event) => setForm((current) => ({ ...current, price: formatCurrencyMask(event.target.value) }))}
               />
             </label>
-            <button
-              className="rounded-full border border-transparent bg-[var(--q-grad-brand)] px-5 py-3 text-sm font-medium uppercase tracking-[0.24em] text-white transition hover:opacity-95"
-              type="submit"
-              disabled={isSaving}
-            >
-              {isSaving ? "Salvando" : "Cadastrar curso"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="rounded-full border border-transparent px-5 py-3 text-sm font-medium uppercase tracking-[0.24em] text-white transition hover:opacity-95"
+                style={{ backgroundImage: "var(--q-grad-brand)", backgroundColor: "var(--q-navy)" }}
+                type="submit"
+                disabled={isSaving}
+              >
+                {isSaving ? "Salvando" : "Salvar"}
+              </button>
+              {selectedCourse ? (
+                <>
+                  <button
+                    className="rounded-full border border-[var(--q-warning)]/40 bg-[var(--q-warning-bg)] px-5 py-3 text-sm font-medium uppercase tracking-[0.24em] text-[var(--q-text)] transition hover:opacity-95"
+                    type="button"
+                    onClick={() => void handleInactivateCourse()}
+                    disabled={isSaving}
+                  >
+                    Inativar
+                  </button>
+                </>
+              ) : null}
+            </div>
           </form>
         </GlassCard>
 
@@ -176,7 +253,7 @@ export function CoursesPage() {
                     onClick={() => setSelectedCourseId(course.id)}
                   >
                     <td className="py-3 font-medium text-[var(--q-text)]">{course.name}</td>
-                    <td className="py-3">{course.level}</td>
+                    <td className="py-3">{translateCourseLevel(course.level)}</td>
                     <td className="py-3">{formatMinutes(course.totalMinutes)}</td>
                     <td className="py-3">{formatCurrency(course.price)}</td>
                     <td className="py-3">
@@ -217,4 +294,38 @@ export function CoursesPage() {
       </GlassCard>
     </div>
   );
+}
+
+function translateCourseLevel(level: string) {
+  switch (level) {
+    case "Discovery":
+      return "Descoberta";
+    case "Beginner":
+      return "Iniciante";
+    case "Intermediate":
+      return "Intermediário";
+    case "Advanced":
+      return "Avançado";
+    default:
+      return level;
+  }
+}
+
+function mapLevelLabelToValue(level: string) {
+  switch (level) {
+    case "Discovery":
+    case "Descoberta":
+      return 1;
+    case "Beginner":
+    case "Iniciante":
+      return 2;
+    case "Intermediate":
+    case "Intermediário":
+      return 3;
+    case "Advanced":
+    case "Avançado":
+      return 4;
+    default:
+      return 2;
+  }
 }

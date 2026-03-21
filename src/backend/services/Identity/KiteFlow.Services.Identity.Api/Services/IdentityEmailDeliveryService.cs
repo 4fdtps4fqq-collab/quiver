@@ -189,7 +189,7 @@ public sealed class IdentityEmailDeliveryService : IIdentityEmailDeliveryService
 
     private string BuildTemporaryPasswordBody(TemporaryPasswordEmailMessage message)
     {
-        var lines = new[]
+        var lines = new List<string?>
         {
             $"Olá, {message.FullName}.",
             string.Empty,
@@ -198,13 +198,14 @@ public sealed class IdentityEmailDeliveryService : IIdentityEmailDeliveryService
             $"URL: {_options.PublicLoginUrl}",
             $"E-mail: {message.Email}",
             $"Senha temporária: {message.TemporaryPassword}",
+            string.IsNullOrWhiteSpace(message.OnboardingUrl) ? null : $"Onboarding guiado: {message.OnboardingUrl}",
             string.Empty,
             "No próximo acesso, a troca da senha continuará obrigatória.",
             string.Empty,
             "Se você não esperava este e-mail, entre em contato com a administração da escola."
         };
 
-        return string.Join(Environment.NewLine, lines);
+        return string.Join(Environment.NewLine, lines.Where(line => line is not null)!);
     }
 
     private static string SanitizeFileName(string value)
@@ -234,7 +235,8 @@ public sealed record TemporaryPasswordEmailMessage(
     string FullName,
     string Email,
     string ScopeLabel,
-    string TemporaryPassword);
+    string TemporaryPassword,
+    string? OnboardingUrl = null);
 
 public sealed record IdentityEmailDeliveryResult(
     string Mode,

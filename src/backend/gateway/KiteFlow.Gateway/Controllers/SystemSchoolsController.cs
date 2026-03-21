@@ -3,9 +3,12 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using KiteFlow.Gateway.Configuration;
 using KiteFlow.Gateway.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace KiteFlow.Gateway.Controllers;
 
@@ -14,15 +17,19 @@ namespace KiteFlow.Gateway.Controllers;
 [Route("api/v1/system/schools")]
 public sealed class SystemSchoolsController : ControllerBase
 {
+    private static readonly JsonSerializerOptions TypedJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IOwnerCredentialDeliveryService _credentialDeliveryService;
+    private readonly OwnerCredentialDeliveryOptions _credentialDeliveryOptions;
 
     public SystemSchoolsController(
         IHttpClientFactory httpClientFactory,
-        IOwnerCredentialDeliveryService credentialDeliveryService)
+        IOwnerCredentialDeliveryService credentialDeliveryService,
+        IOptions<OwnerCredentialDeliveryOptions> credentialDeliveryOptions)
     {
         _httpClientFactory = httpClientFactory;
         _credentialDeliveryService = credentialDeliveryService;
+        _credentialDeliveryOptions = credentialDeliveryOptions.Value;
     }
 
     [HttpGet]
@@ -36,7 +43,35 @@ public sealed class SystemSchoolsController : ControllerBase
             return await BuildErrorResult("schools", response, cancellationToken);
         }
 
-        var payload = await ReadJsonAsync(response, cancellationToken);
+        var schools = await ReadTypedJsonAsync<List<SystemSchoolSummaryResponse>>(response, cancellationToken)
+            ?? [];
+
+        if (schools.Count == 0)
+        {
+            return Ok(schools);
+        }
+
+        var ownerEmailsBySchool = await GetOwnerEmailsBySchoolAsync(schools.Select(x => x.Id), cancellationToken);
+
+        var payload = schools.Select(school => new
+        {
+            school.Id,
+            school.LegalName,
+            school.DisplayName,
+            school.Slug,
+            school.LogoDataUrl,
+            school.BaseBeachName,
+            school.BaseLatitude,
+            school.BaseLongitude,
+            school.Status,
+            school.Timezone,
+            school.CurrencyCode,
+            school.CreatedAtUtc,
+            school.UsersCount,
+            school.OwnerName,
+            ownerEmail = ownerEmailsBySchool.TryGetValue(school.Id, out var ownerEmail) ? ownerEmail : null
+        });
+
         return Ok(payload);
     }
 
@@ -131,6 +166,10 @@ public sealed class SystemSchoolsController : ControllerBase
                 "A escola foi criada, mas a conta do proprietário falhou no Identity. A compensação ainda não é automática.");
         }
 
+        var publicLoginUrl = string.IsNullOrWhiteSpace(_credentialDeliveryOptions.PublicLoginUrl)
+            ? $"{Request.Scheme}://{Request.Host}/login"
+            : _credentialDeliveryOptions.PublicLoginUrl;
+
         var delivery = await _credentialDeliveryService.SendTemporaryPasswordAsync(
             new OwnerCredentialDeliveryMessage(
                 request.OwnerFullName,
@@ -138,7 +177,7 @@ public sealed class SystemSchoolsController : ControllerBase
                 request.DisplayName,
                 request.Slug ?? request.DisplayName,
                 temporaryPassword,
-                "http://localhost:5174/login"),
+                publicLoginUrl),
             cancellationToken);
 
         return Ok(new
@@ -240,6 +279,38 @@ public sealed class SystemSchoolsController : ControllerBase
         return client;
     }
 
+    private async Task<Dictionary<Guid, string>> GetOwnerEmailsBySchoolAsync(
+        IEnumerable<Guid> schoolIds,
+        CancellationToken cancellationToken)
+    {
+        var normalizedIds = schoolIds
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (normalizedIds.Length == 0)
+        {
+            return [];
+        }
+
+        var queryString = string.Join("&", normalizedIds.Select(id => $"schoolIds={id}"));
+        var identityClient = CreateAuthorizedClient("identity");
+        var response = await identityClient.GetAsync($"/api/v1/system/tenants/owners?{queryString}", cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return [];
+        }
+
+        var owners = await ReadTypedJsonAsync<List<SchoolOwnerEmailResponse>>(response, cancellationToken)
+            ?? [];
+
+        return owners
+            .Where(x => x.SchoolId != Guid.Empty && !string.IsNullOrWhiteSpace(x.Email))
+            .GroupBy(x => x.SchoolId)
+            .ToDictionary(group => group.Key, group => group.First().Email);
+    }
+
     private static async Task<IActionResult> BuildErrorResult(
         string service,
         HttpResponseMessage response,
@@ -266,6 +337,12 @@ public sealed class SystemSchoolsController : ControllerBase
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return document.RootElement.Clone();
+    }
+
+    private static async Task<T?> ReadTypedJsonAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonSerializer.DeserializeAsync<T>(stream, TypedJsonOptions, cancellationToken);
     }
 
     public sealed record CreateSystemSchoolRequest(
@@ -331,4 +408,25 @@ public sealed class SystemSchoolsController : ControllerBase
         string Status,
         string? Timezone,
         string? CurrencyCode);
+
+    private sealed record SystemSchoolSummaryResponse(
+        Guid Id,
+        string LegalName,
+        string DisplayName,
+        string Slug,
+        string? LogoDataUrl,
+        string? BaseBeachName,
+        double? BaseLatitude,
+        double? BaseLongitude,
+        string Status,
+        string Timezone,
+        string CurrencyCode,
+        DateTime CreatedAtUtc,
+        int UsersCount,
+        string? OwnerName);
+
+    private sealed record SchoolOwnerEmailResponse(
+        Guid SchoolId,
+        Guid UserId,
+        string Email);
 }

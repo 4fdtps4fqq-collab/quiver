@@ -15,6 +15,7 @@ export type SystemSchoolSummary = {
   createdAtUtc: string;
   usersCount: number;
   ownerName?: string;
+  ownerEmail?: string;
 };
 
 export type SystemSchoolDetails = {
@@ -120,9 +121,9 @@ export type UpdateSystemSchoolPayload = {
 };
 
 export function getSystemSchools(token: string) {
-  return apiRequest<SystemSchoolSummary[]>("/api/v1/system/schools", {
+  return apiRequest<Record<string, unknown>[]>("/api/v1/system/schools", {
     token
-  });
+  }).then((items) => items.map(normalizeSystemSchoolSummary));
 }
 
 export function createSystemSchool(token: string, payload: CreateSystemSchoolPayload) {
@@ -141,9 +142,9 @@ export function createSystemSchool(token: string, payload: CreateSystemSchoolPay
 }
 
 export function getSystemSchoolDetails(token: string, schoolId: string) {
-  return apiRequest<SystemSchoolDetails>(`/api/v1/system/schools/${schoolId}`, {
+  return apiRequest<Record<string, unknown>>(`/api/v1/system/schools/${schoolId}`, {
     token
-  });
+  }).then(normalizeSystemSchoolDetails);
 }
 
 export function updateSystemSchool(token: string, schoolId: string, payload: UpdateSystemSchoolPayload) {
@@ -974,6 +975,7 @@ export type SchoolUser = {
   identityUserId: string;
   fullName: string;
   phone?: string;
+  salaryAmount?: number;
   avatarUrl?: string;
   profileIsActive: boolean;
   email?: string;
@@ -1118,6 +1120,20 @@ export function createCourse(token: string, body: {
 }) {
   return apiRequest<{ courseId: string }>("/academics/api/v1/courses", {
     method: "POST",
+    token,
+    body
+  });
+}
+
+export function updateCourse(token: string, courseId: string, body: {
+  name: string;
+  level: number;
+  totalHours: number;
+  price: number;
+  isActive: boolean;
+}) {
+  return apiRequest<void>(`/academics/api/v1/courses/${courseId}`, {
+    method: "PUT",
     token,
     body
   });
@@ -1871,10 +1887,10 @@ export function getSchoolUsers(token: string) {
 export function createSchoolUser(token: string, body: {
   fullName: string;
   email: string;
-  password: string;
   role: number;
   permissions?: string[];
   phone?: string;
+  salaryAmount?: number | null;
   avatarUrl?: string;
   isActive: boolean;
   mustChangePassword: boolean;
@@ -1882,6 +1898,8 @@ export function createSchoolUser(token: string, body: {
   return apiRequest<{
     profileId: string;
     identityUserId: string;
+    deliveryMode?: string;
+    outboxFilePath?: string;
   }>("/api/v1/school-users", {
     method: "POST",
     token,
@@ -1895,6 +1913,7 @@ export function updateSchoolUser(token: string, identityUserId: string, body: {
   role: number;
   permissions?: string[];
   phone?: string;
+  salaryAmount?: number | null;
   avatarUrl?: string;
   isActive: boolean;
   mustChangePassword: boolean;
@@ -1934,9 +1953,9 @@ export function cancelSchoolInvitation(token: string, invitationId: string) {
 }
 
 export function resetSchoolUserPassword(token: string, identityUserId: string, body: {
-  temporaryPassword: string;
-  mustChangePassword: boolean;
   deliverByEmail?: boolean;
+  email?: string;
+  fullName?: string;
 }) {
   return apiRequest<{
     resetAtUtc: string;
@@ -1969,4 +1988,90 @@ function withQuery(path: string, filters?: Record<string, string | number | bool
 
   const queryString = query.toString();
   return queryString ? `${path}?${queryString}` : path;
+}
+
+function readString(record: Record<string, unknown>, camelKey: string, pascalKey?: string) {
+  const value = record[camelKey] ?? record[pascalKey ?? capitalize(camelKey)];
+  return typeof value === "string" ? value : undefined;
+}
+
+function readNumber(record: Record<string, unknown>, camelKey: string, pascalKey?: string) {
+  const value = record[camelKey] ?? record[pascalKey ?? capitalize(camelKey)];
+  return typeof value === "number" ? value : undefined;
+}
+
+function readBoolean(record: Record<string, unknown>, camelKey: string, pascalKey?: string) {
+  const value = record[camelKey] ?? record[pascalKey ?? capitalize(camelKey)];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function readObject(record: Record<string, unknown>, camelKey: string, pascalKey?: string) {
+  const value = record[camelKey] ?? record[pascalKey ?? capitalize(camelKey)];
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function normalizeSystemSchoolSummary(item: Record<string, unknown>): SystemSchoolSummary {
+  return {
+    id: readString(item, "id") ?? "",
+    legalName: readString(item, "legalName") ?? "",
+    displayName: readString(item, "displayName") ?? "",
+    slug: readString(item, "slug") ?? "",
+    logoDataUrl: readString(item, "logoDataUrl"),
+    baseBeachName: readString(item, "baseBeachName"),
+    baseLatitude: readNumber(item, "baseLatitude"),
+    baseLongitude: readNumber(item, "baseLongitude"),
+    status: readString(item, "status") ?? "",
+    timezone: readString(item, "timezone") ?? "",
+    currencyCode: readString(item, "currencyCode") ?? "",
+    createdAtUtc: readString(item, "createdAtUtc") ?? "",
+    usersCount: readNumber(item, "usersCount") ?? 0,
+    ownerName: readString(item, "ownerName"),
+    ownerEmail: readString(item, "ownerEmail")
+  };
+}
+
+function normalizeSystemSchoolDetails(item: Record<string, unknown>): SystemSchoolDetails {
+  const owner = readObject(item, "owner");
+
+  return {
+    id: readString(item, "id") ?? "",
+    legalName: readString(item, "legalName") ?? "",
+    displayName: readString(item, "displayName") ?? "",
+    cnpj: readString(item, "cnpj"),
+    baseBeachName: readString(item, "baseBeachName"),
+    baseLatitude: readNumber(item, "baseLatitude"),
+    baseLongitude: readNumber(item, "baseLongitude"),
+    logoDataUrl: readString(item, "logoDataUrl"),
+    postalCode: readString(item, "postalCode"),
+    street: readString(item, "street"),
+    streetNumber: readString(item, "streetNumber"),
+    addressComplement: readString(item, "addressComplement"),
+    neighborhood: readString(item, "neighborhood"),
+    city: readString(item, "city"),
+    state: readString(item, "state"),
+    timezone: readString(item, "timezone") ?? "",
+    currencyCode: readString(item, "currencyCode") ?? "",
+    status: readString(item, "status") ?? "",
+    owner: owner
+      ? {
+          id: readString(owner, "id") ?? "",
+          identityUserId: readString(owner, "identityUserId") ?? "",
+          fullName: readString(owner, "fullName") ?? "",
+          cpf: readString(owner, "cpf"),
+          phone: readString(owner, "phone"),
+          postalCode: readString(owner, "postalCode"),
+          street: readString(owner, "street"),
+          streetNumber: readString(owner, "streetNumber"),
+          addressComplement: readString(owner, "addressComplement"),
+          neighborhood: readString(owner, "neighborhood"),
+          city: readString(owner, "city"),
+          state: readString(owner, "state"),
+          isActive: readBoolean(owner, "isActive") ?? true
+        }
+      : null
+  };
 }

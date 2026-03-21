@@ -12,6 +12,8 @@ public sealed class UserProfile : TenantScopedEntity
 
     public string? Phone { get; set; }
 
+    public decimal? SalaryAmount { get; set; }
+
     public string? PostalCode { get; set; }
 
     public string? Street { get; set; }

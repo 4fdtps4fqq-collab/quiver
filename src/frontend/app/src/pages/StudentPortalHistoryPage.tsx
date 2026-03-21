@@ -1,6 +1,7 @@
 import { History, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth/SessionContext";
+import { ErrorBlock } from "../components/OperationsUi";
 import { getStudentPortalHistory, type StudentPortalHistoryResponse } from "../lib/platform-api";
 import { formatDateTime, formatMinutes } from "../lib/formatters";
 import { translateLabel } from "../lib/localization";
@@ -56,11 +57,7 @@ export function StudentPortalHistoryPage() {
   }
 
   if (!payload) {
-    return (
-      <div className="rounded-[32px] border border-rose-300/40 bg-white/70 p-8 text-sm text-rose-900 shadow-xl backdrop-blur-xl">
-        {error ?? "Não foi possível carregar o histórico."}
-      </div>
-    );
+    return <ErrorBlock message={error ?? "Não foi possível carregar o histórico."} />;
   }
 
   return (

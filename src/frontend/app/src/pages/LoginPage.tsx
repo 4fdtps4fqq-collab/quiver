@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useSession } from "../auth/SessionContext";
+import { ErrorBlock } from "../components/OperationsUi";
 import {
   forgotPasswordRequest,
   resetPasswordRequest,
@@ -423,11 +424,7 @@ export function LoginPage() {
                   </div>
                 )}
 
-                {error ? (
-                  <div className="mt-4 rounded-2xl border border-[var(--q-danger)]/30 bg-[var(--q-danger-bg)] px-4 py-3 text-sm text-[var(--q-danger)]">
-                    {error}
-                  </div>
-                ) : null}
+                {error ? <ErrorBlock message={error} /> : null}
                 {notice ? (
                   <div className="mt-4 rounded-2xl border border-[var(--q-info)]/30 bg-[var(--q-info-bg)] px-4 py-3 text-sm text-[var(--q-info)]">
                     {notice}

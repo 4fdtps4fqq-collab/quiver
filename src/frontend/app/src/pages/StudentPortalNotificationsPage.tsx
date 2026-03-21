@@ -1,6 +1,7 @@
 import { BellRing, CheckCheck, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth/SessionContext";
+import { ErrorBlock } from "../components/OperationsUi";
 import {
   getStudentPortalNotifications,
   readAllStudentPortalNotifications,
@@ -81,11 +82,7 @@ export function StudentPortalNotificationsPage() {
   }
 
   if (!payload) {
-    return (
-      <div className="rounded-[32px] border border-rose-300/40 bg-white/70 p-8 text-sm text-rose-900 shadow-xl backdrop-blur-xl">
-        {error ?? "Não foi possível carregar as notificações."}
-      </div>
-    );
+    return <ErrorBlock message={error ?? "Não foi possível carregar as notificações."} />;
   }
 
   return (
@@ -119,11 +116,7 @@ export function StudentPortalNotificationsPage() {
         </div>
       </section>
 
-      {error ? (
-        <div className="rounded-[24px] border border-rose-300/60 bg-rose-100/80 px-4 py-3 text-sm text-rose-950">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorBlock message={error} /> : null}
 
       <section className="space-y-4">
         {payload.items.length === 0 ? (
