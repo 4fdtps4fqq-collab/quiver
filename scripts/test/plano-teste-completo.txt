@@ -1,0 +1,583 @@
+PLANO DE TESTE COMPLETO - KITEFLOW / QUIVER
+Versao: 1.0
+Data: 20/03/2026
+
+OBJETIVO
+Validar funcionalidade, seguranca, isolamento multi-tenant, integridade de dados, experiencia operacional e publicacao do sistema Quiver/KiteFlow.
+
+ESCOPO
+- Identidade e autenticacao
+- Multi-tenancy por escola
+- Administracao do sistema
+- Administracao da escola
+- Alunos
+- Portal do aluno
+- Cursos e matriculas
+- Agenda e aulas
+- Equipamentos e manutencao
+- Financeiro
+- Publicacao em IIS + dominio publico
+
+PRE-REQUISITOS
+- Banco PostgreSQL operacional
+- Servicos backend ativos
+- Frontend ativo
+- Conta SystemAdmin valida
+- Pelo menos 2 escolas de teste
+- SMTP configurado e funcional
+- Dominio publicado e ambiente local funcionando
+
+AMBIENTES
+1. Local
+   App: http://localhost:5174
+   Gateway: http://localhost:7000
+
+2. Publicado
+   App: https://app.quivercloud.com.br
+
+USUARIOS DE TESTE SUGERIDOS
+1. SystemAdmin
+2. Owner da Escola A
+3. Owner da Escola B
+4. Administrativo da Escola A
+5. Instrutor da Escola A
+6. Aluno da Escola A
+7. Administrativo da Escola B
+8. Aluno da Escola B
+
+CRITERIOS GERAIS DE APROVACAO
+- Nenhum dado de uma escola pode ser visivel em outra
+- Nenhum usuario pode acessar modulo sem permissao
+- Nenhuma receita ou despesa pode ser misturada entre escolas
+- Fluxos com senha temporaria devem exigir troca de senha no primeiro acesso
+- Erros devem ser tratados com mensagem clara sem stack trace para o usuario
+- Sistema deve funcionar em localhost e no dominio publicado
+
+BLOCO 1 - IDENTIDADE E AUTENTICACAO
+Caso 1.1 - Login valido
+Passos:
+- Entrar com credencial correta
+Esperado:
+- Login bem-sucedido
+- Redirecionamento para home correta do papel
+
+Caso 1.2 - Login invalido
+Passos:
+- Entrar com senha incorreta
+Esperado:
+- Mensagem amigavel de falha
+- Sem detalhes tecnicos sensiveis
+
+Caso 1.3 - Sessao com Ctrl + F5
+Passos:
+- Logar
+- Atualizar com Ctrl + F5
+Esperado:
+- Sessao pode ser restaurada com seguranca via cookie HttpOnly
+- Nenhum token visivel em localStorage
+
+Caso 1.4 - Timeout por inatividade
+Passos:
+- Logar
+- Permanecer inativo por mais de 30 minutos
+- Tentar usar a aplicacao
+Esperado:
+- Sessao expirada
+- Necessidade de novo login
+
+Caso 1.5 - Refresh de sessao
+Passos:
+- Logar
+- Navegar entre telas ate renovar sessao
+Esperado:
+- Renovacao silenciosa
+- Sem quebra de navegacao
+
+Caso 1.6 - Logout
+Passos:
+- Fazer logout
+- Tentar voltar com botao do navegador
+Esperado:
+- Usuario nao retorna autenticado
+
+Caso 1.7 - Recuperacao de senha
+Passos:
+- Solicitar recuperacao
+- Receber e-mail
+- Abrir link
+- Definir nova senha
+Esperado:
+- Redefinicao concluida
+- Login com nova senha permitido
+
+Caso 1.8 - Troca obrigatoria de senha
+Passos:
+- Criar usuario com senha temporaria
+- Fazer login
+Esperado:
+- Banner de troca obrigatoria
+- Aplicacao bloqueada ate trocar a senha
+
+BLOCO 2 - SYSTEMADMIN E ESCOLAS
+Caso 2.1 - Criar nova escola
+Passos:
+- Logar como SystemAdmin
+- Cadastrar escola com owner
+Esperado:
+- Escola criada
+- Owner recebe senha temporaria por e-mail
+- Tenant isolado criado
+
+Caso 2.2 - Upload da logo da escola
+Passos:
+- Cadastrar logo
+- Entrar como owner da escola
+Esperado:
+- Sidebar exibe a logo da escola
+
+Caso 2.3 - Inativar escola
+Passos:
+- Inativar escola como SystemAdmin
+- Tentar usar credencial da escola
+Esperado:
+- Login ou uso bloqueado
+
+Caso 2.4 - Reativar escola
+Passos:
+- Reativar escola
+- Fazer login novamente
+Esperado:
+- Acesso liberado
+
+Caso 2.5 - Editar escola
+Passos:
+- Alterar endereco, praia base, branding
+Esperado:
+- Persistencia correta
+- Dados refletidos no login e sidebar
+
+Caso 2.6 - Excluir escola
+Passos:
+- Excluir tenant de teste
+Esperado:
+- Dados removidos dos servicos previstos
+- Nao sobram rastros acessiveis por UI
+
+BLOCO 3 - MULTI-TENANCY E ISOLAMENTO
+Caso 3.1 - Usuario da Escola A nao ve dados da Escola B
+Passos:
+- Logar com owner/admin da Escola A
+- Navegar por alunos, cursos, matriculas, agenda, equipamentos e financeiro
+Esperado:
+- Apenas dados da Escola A visiveis
+
+Caso 3.2 - Acesso cruzado por URL
+Passos:
+- Tentar acessar dados da Escola B com token da Escola A, por endpoints ou IDs conhecidos
+Esperado:
+- Bloqueio por 403, 404 ou 409 conforme o caso
+
+Caso 3.3 - Financeiro isolado
+Passos:
+- Lancar receitas e despesas em A e B
+- Conferir totais
+Esperado:
+- Nenhuma mistura entre tenants
+
+Caso 3.4 - Aluno ativo em apenas uma escola
+Passos:
+- Tentar duplicar aluno ativo em outra escola usando mesmo e-mail/vinculo
+Esperado:
+- Conflito bloqueado
+
+Caso 3.5 - Instrutor ativo em apenas uma escola
+Passos:
+- Tentar duplicar instrutor ativo em outra escola
+Esperado:
+- Conflito bloqueado
+
+BLOCO 4 - ADMINISTRACAO DA ESCOLA E COLABORADORES
+Caso 4.1 - Criar colaborador administrativo
+Passos:
+- Criar colaborador com funcao Administrativo
+Esperado:
+- Conta criada
+- Permissoes salvas
+
+Caso 4.2 - Criar colaborador instrutor
+Passos:
+- Criar colaborador com funcao Instrutor
+- Informar hora/aula e especialidades
+Esperado:
+- Conta criada
+- Vinculo academico do instrutor criado/atualizado
+
+Caso 4.3 - Reset de senha do colaborador
+Passos:
+- Resetar senha de um colaborador
+Esperado:
+- Nova senha temporaria enviada
+- Troca obrigatoria no primeiro acesso
+
+Caso 4.4 - Desativacao com impacto
+Passos:
+- Tentar desativar colaborador com impacto operacional
+Esperado:
+- Bloqueio com mensagem clara
+
+Caso 4.5 - Permissoes granulares
+Passos:
+- Criar um administrativo com acesso apenas a Agenda
+- Logar com ele
+Esperado:
+- Agenda acessivel
+- Modulos nao permitidos bloqueados
+
+BLOCO 5 - ALUNOS
+Caso 5.1 - Criar aluno sem e-mail
+Passos:
+- Cadastrar aluno sem e-mail
+Esperado:
+- Cadastro salvo
+- Sem acesso ao portal
+
+Caso 5.2 - Criar aluno com e-mail
+Passos:
+- Cadastrar aluno com e-mail
+Esperado:
+- Cadastro salvo
+- Senha temporaria enviada por e-mail
+- Acesso ao portal criado
+
+Caso 5.3 - Editar aluno
+Passos:
+- Alterar dados pessoais e endereco
+Esperado:
+- Persistencia correta
+
+Caso 5.4 - Resetar senha do portal do aluno
+Passos:
+- Abrir ficha do aluno
+- Acionar reset
+Esperado:
+- Nova senha temporaria enviada por e-mail
+- mustChangePassword ligado
+
+Caso 5.5 - Enviar acesso ao portal
+Passos:
+- Em aluno sem credencial, clicar no botao de acesso
+Esperado:
+- Credencial criada
+- Aluno vinculado ao Identity
+
+Caso 5.6 - Busca e listagem
+Passos:
+- Buscar por nome e telefone
+Esperado:
+- Base de alunos filtra corretamente
+
+BLOCO 6 - PORTAL DO ALUNO
+Caso 6.1 - Primeiro acesso com senha temporaria
+Passos:
+- Logar como aluno com senha temporaria
+Esperado:
+- Exigencia de troca de senha
+- Portal bloqueado ate concluir a troca
+
+Caso 6.2 - Acesso apos troca de senha
+Passos:
+- Alterar senha
+- Continuar navegacao
+Esperado:
+- Portal liberado
+
+Caso 6.3 - Visao do aluno
+Passos:
+- Abrir visao geral, historico, notificacoes e perfil
+Esperado:
+- Dados corretos do proprio aluno
+- Nenhum dado de outro aluno
+
+Caso 6.4 - Atualizacao de perfil
+Passos:
+- Alterar campos permitidos no perfil
+Esperado:
+- Persistencia correta
+
+Caso 6.5 - Restricao por inadimplencia
+Passos:
+- Tornar aluno inadimplente
+- Tentar agendar ou remarcar pelo portal
+Esperado:
+- Bloqueio com mensagem clara
+
+BLOCO 7 - CURSOS E MATRICULAS
+Caso 7.1 - Criar curso
+Passos:
+- Cadastrar curso com carga horaria, preco e trilha pedagogica
+Esperado:
+- Curso salvo
+
+Caso 7.2 - Criar matricula
+Passos:
+- Vincular aluno a curso
+Esperado:
+- Matricula ativa
+- Saldo horario inicial correto
+
+Caso 7.3 - Progresso do aluno
+Passos:
+- Realizar aulas da matricula
+Esperado:
+- Percentual de progresso atualizado
+- Modulo atual coerente
+
+BLOCO 8 - AGENDA E AULAS
+Caso 8.1 - Criar aula avulsa
+Passos:
+- Criar aula avulsa com aluno e instrutor
+Esperado:
+- Aula agendada
+
+Caso 8.2 - Criar aula de curso
+Passos:
+- Criar aula vinculada a matricula
+Esperado:
+- Consumo previsto coerente
+
+Caso 8.3 - Conflito de agenda
+Passos:
+- Tentar agendar duas aulas conflitantes para mesmo instrutor
+Esperado:
+- Conflito bloqueado
+
+Caso 8.4 - Confirmacao operacional
+Passos:
+- Confirmar aula
+- Realizar aula
+Esperado:
+- Status evolui corretamente
+
+Caso 8.5 - No-show
+Passos:
+- Registrar no-show
+Esperado:
+- Aplicacao das regras configuradas
+
+Caso 8.6 - Reagendamento
+Passos:
+- Remarcar aula
+Esperado:
+- Historico e novas datas coerentes
+
+BLOCO 9 - EQUIPAMENTOS E MANUTENCAO
+Caso 9.1 - Cadastrar equipamento
+Passos:
+- Criar itens de kite, prancha, colete, trapezio, barra e capacete
+Esperado:
+- Itens salvos com categoria correta
+
+Caso 9.2 - Disponibilidade por agenda
+Passos:
+- Reservar equipamento em aula
+- Tentar reservar o mesmo item no mesmo horario
+Esperado:
+- Conflito bloqueado
+
+Caso 9.3 - Kit de equipamento
+Passos:
+- Criar kit
+- Reservar kit em aula
+Esperado:
+- Componentes refletidos corretamente
+
+Caso 9.4 - Manutencao de item da escola
+Passos:
+- Abrir manutencao com custo
+Esperado:
+- Despesa refletida no financeiro
+
+Caso 9.5 - Manutencao de item de terceiro
+Passos:
+- Abrir manutencao de equipamento de terceiro
+Esperado:
+- Receita refletida no financeiro
+
+Caso 9.6 - Historico de vida util
+Passos:
+- Consultar historico do equipamento
+Esperado:
+- Reservas, uso e manutencoes visiveis
+
+BLOCO 10 - FINANCEIRO
+Caso 10.1 - Categorias financeiras
+Passos:
+- Criar categorias por escola
+Esperado:
+- Disponiveis apenas naquela escola
+
+Caso 10.2 - Centro de custo
+Passos:
+- Criar centros de custo
+Esperado:
+- Disponiveis nos lancamentos
+
+Caso 10.3 - Receita manual
+Passos:
+- Lancar receita
+Esperado:
+- Total de receita atualizado
+
+Caso 10.4 - Despesa manual
+Passos:
+- Lancar despesa
+Esperado:
+- Total de despesa atualizado
+
+Caso 10.5 - Conta a receber
+Passos:
+- Criar recebivel
+- Dar baixa parcial e total
+Esperado:
+- Status financeiro correto
+
+Caso 10.6 - Conta a pagar
+Passos:
+- Criar pagamento previsto
+- Dar baixa
+Esperado:
+- Status atualizado
+
+Caso 10.7 - Conciliacao manual
+Passos:
+- Conciliar linha financeira
+Esperado:
+- Status de conciliacao persistido
+
+Caso 10.8 - Integracao automatica
+Passos:
+- Criar matricula e aula avulsa
+Esperado:
+- Eventos financeiros automaticos quando configurados
+
+Caso 10.9 - Margem
+Passos:
+- Consultar margem por curso, instrutor e periodo
+Esperado:
+- Totais coerentes
+
+Caso 10.10 - Exportacao
+Passos:
+- Exportar receitas, despesas, recebimentos e pagamentos
+Esperado:
+- Arquivos gerados com filtros aplicados
+
+BLOCO 11 - PUBLICACAO E DOMINIO
+Caso 11.1 - Login no localhost publicado
+Passos:
+- Abrir http://localhost:5174
+- Fazer login
+Esperado:
+- Fluxo completo funcionando
+
+Caso 11.2 - Login no dominio publicado
+Passos:
+- Abrir https://app.quivercloud.com.br
+- Fazer login
+Esperado:
+- Fluxo completo funcionando
+
+Caso 11.3 - Mesma origem
+Passos:
+- Verificar login e navegacao no dominio publicado
+Esperado:
+- Chamadas usam mesma origem
+- Sem erro de CORS
+
+Caso 11.4 - IIS
+Passos:
+- Validar sites e pools do IIS
+Esperado:
+- Todos iniciados
+- Sem erro 500.19
+
+Caso 11.5 - Cloudflare Tunnel
+Passos:
+- Validar hostname publico
+Esperado:
+- Acesso externo funcional
+
+BLOCO 12 - SEGURANCA
+Caso 12.1 - Sem tokens em localStorage
+Passos:
+- Abrir DevTools > Application
+Esperado:
+- Sem access token e refresh token persistidos em localStorage
+
+Caso 12.2 - Cookie de refresh
+Passos:
+- Inspecionar cookies
+Esperado:
+- Cookie HttpOnly presente
+
+Caso 12.3 - Nao exposicao de erro tecnico
+Passos:
+- Forcar erro de login e de modulo
+Esperado:
+- Usuario ve mensagem amigavel
+- Sem stack trace
+
+Caso 12.4 - Autorizacao por papel e permissao
+Passos:
+- Testar usuarios com perfis diferentes
+Esperado:
+- Menus e rotas coerentes com permissao
+
+Caso 12.5 - Inatividade
+Passos:
+- Esperar timeout
+Esperado:
+- Sessao revogada
+
+BLOCO 13 - SMOKE REGRESSION FINAL
+Executar ao final de cada release:
+1. Login SystemAdmin
+2. Login Owner
+3. Login Administrativo
+4. Login Aluno
+5. Criacao de escola
+6. Criacao de colaborador
+7. Criacao de aluno
+8. Emissao de acesso ao portal
+9. Criacao de curso
+10. Criacao de matricula
+11. Criacao de aula
+12. Reserva de equipamento
+13. Lancamento financeiro
+14. Validacao de dashboard
+15. Validacao de isolamento entre duas escolas
+
+REGISTRO DE EVIDENCIAS
+Para cada execucao registrar:
+- Data e hora
+- Ambiente
+- Usuario executante
+- Caso de teste
+- Resultado
+- Evidencia: print, log, arquivo exportado ou resposta da API
+- Observacoes
+
+CRITERIO DE GO/NO-GO
+GO
+- Nenhum bloqueador de autenticacao
+- Nenhum vazamento entre escolas
+- Financeiro isolado e coerente
+- Portal do aluno funcional
+- Publicacao local e publica funcionando
+
+NO-GO
+- Qualquer vazamento de dados entre tenants
+- Qualquer mistura financeira entre escolas
+- Falha no login ou troca obrigatoria de senha
+- Falha na emissao/reset de senha temporaria
+- Erros 500 recorrentes em fluxos principais

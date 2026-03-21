@@ -3,10 +3,10 @@ import { useSession } from "../auth/SessionContext";
 import { PageHero } from "../components/PageHero";
 import { ErrorBlock, GlassCard, LoadingBlock } from "../components/OperationsUi";
 import {
-  createSchoolInvitation,
   createStudent,
   getStudentFinancialStatuses,
   getStudents,
+  issueStudentPortalAccess,
   updateStudent,
   type Student,
   type StudentFinancialStatusSummary
@@ -32,7 +32,7 @@ const initialForm = {
 };
 
 export function StudentsPage() {
-  const { token, school } = useSession();
+  const { token } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [financialStatuses, setFinancialStatuses] = useState<Record<string, StudentFinancialStatusSummary>>({});
   const [delinquentStudents, setDelinquentStudents] = useState(0);
@@ -43,6 +43,7 @@ export function StudentsPage() {
   const [postalCodeFeedback, setPostalCodeFeedback] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isIssuingPortalAccess, setIsIssuingPortalAccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -58,7 +59,6 @@ export function StudentsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      setNotice(null);
       const [studentsResult, statusesResult] = await Promise.allSettled([
         getStudents(currentToken),
         getStudentFinancialStatuses(currentToken)
@@ -121,8 +121,28 @@ export function StudentsPage() {
           identityUserId: currentStudent?.identityUserId ?? null,
           isActive: form.isActive
         });
+
+        setNotice("Ficha do aluno atualizada com sucesso.");
       } else {
-        await createStudent(token, payload);
+        const created = await createStudent(token, payload);
+        let nextNotice = "Aluno cadastrado com sucesso.";
+
+        if (payload.email) {
+          try {
+            const access = await issueStudentPortalAccess(token, created.studentId);
+            nextNotice =
+              access.deliveryMode === "File" && access.outboxFilePath
+                ? `Aluno cadastrado e acesso ao portal enviado. Arquivo salvo em ${access.outboxFilePath}.`
+                : "Aluno cadastrado e senha temporária do portal enviada por e-mail.";
+          } catch (portalError) {
+            nextNotice =
+              portalError instanceof Error
+                ? `Aluno cadastrado, mas não foi possível enviar o acesso ao portal agora: ${portalError.message}`
+                : "Aluno cadastrado, mas não foi possível enviar o acesso ao portal agora.";
+          }
+        }
+
+        setNotice(nextNotice);
       }
 
       setForm(initialForm);
@@ -186,31 +206,30 @@ export function StudentsPage() {
     setNotice(null);
   }
 
-  async function handleSendPortalInvite() {
+  async function handleIssuePortalAccess() {
     if (!token || !selectedStudent || !selectedStudent.email) {
       return;
     }
 
     try {
+      setIsIssuingPortalAccess(true);
       setError(null);
       setNotice(null);
-      const invitation = await createSchoolInvitation(token, {
-        fullName: selectedStudent.fullName,
-        email: selectedStudent.email,
-        phone: selectedStudent.phone || undefined,
-        role: 4,
-        expiresInDays: 7,
-        schoolDisplayName: school?.displayName,
-        schoolSlug: school?.slug
-      });
+      const access = await issueStudentPortalAccess(token, selectedStudent.id);
 
       setNotice(
-        invitation.deliveryMode === "File" && invitation.outboxFilePath
-          ? `Acesso do portal gerado e salvo em ${invitation.outboxFilePath}.`
-          : "Convite de acesso ao portal enviado com sucesso."
+        access.deliveryMode === "File" && access.outboxFilePath
+          ? `Nova senha temporária do portal gerada e salva em ${access.outboxFilePath}.`
+          : access.createdNewAccount
+            ? "Acesso inicial ao portal enviado com sucesso."
+            : "Nova senha temporária do portal enviada com sucesso."
       );
+
+      await loadStudents(token);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Não foi possível enviar o acesso ao portal.");
+    } finally {
+      setIsIssuingPortalAccess(false);
     }
   }
 
@@ -542,9 +561,14 @@ export function StudentsPage() {
                 <button
                   className="mt-1 rounded-full border border-[var(--q-info)]/30 bg-[var(--q-info-bg)] px-5 py-3.5 text-sm font-medium uppercase tracking-[0.24em] text-[var(--q-info)] transition hover:opacity-90"
                   type="button"
-                  onClick={() => void handleSendPortalInvite()}
+                  onClick={() => void handleIssuePortalAccess()}
+                  disabled={isIssuingPortalAccess}
                 >
-                  Enviar acesso ao portal
+                  {isIssuingPortalAccess
+                    ? "Processando acesso..."
+                    : selectedStudent?.identityUserId
+                      ? "Resetar senha do portal"
+                      : "Enviar acesso ao portal"}
                 </button>
               ) : null}
             </div>

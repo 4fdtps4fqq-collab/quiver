@@ -21,6 +21,7 @@ namespace KiteFlow.Services.Identity.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private const string InternalServiceKeyHeader = "X-KiteFlow-Internal-Key";
+    private const string RefreshTokenCookieName = "kiteflow_refresh";
     private readonly IdentityDbContext _dbContext;
     private readonly JwtOptions _jwtOptions;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -125,6 +126,7 @@ public sealed class AuthController : ControllerBase
 
         user.LastLoginAtUtc = DateTime.UtcNow;
         var session = await IssueSessionAsync(user, request.DeviceName, cancellationToken: cancellationToken);
+        WriteRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAtUtc);
         await WriteAuditAsync(
             eventType: "auth.login",
             outcome: "Succeeded",
@@ -133,19 +135,21 @@ public sealed class AuthController : ControllerBase
             email: user.Email,
             metadata: new { request.DeviceName },
             cancellationToken: cancellationToken);
-        return Ok(session);
+        return Ok(ToLoginResponse(session));
     }
 
     [AllowAnonymous]
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest? request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        var providedRefreshToken = ResolveRefreshToken(request?.RefreshToken);
+        if (string.IsNullOrWhiteSpace(providedRefreshToken))
         {
-            return BadRequest("O refresh token é obrigatório.");
+            DeleteRefreshTokenCookie();
+            return Unauthorized("Sua sessão de acesso expirou. Entre novamente.");
         }
 
-        var tokenHash = HashToken(request.RefreshToken);
+        var tokenHash = HashToken(providedRefreshToken);
         var existingSession = await _dbContext.RefreshSessions
             .Include(x => x.UserAccount)
             .FirstOrDefaultAsync(x =>
@@ -156,6 +160,7 @@ public sealed class AuthController : ControllerBase
 
         if (existingSession?.UserAccount is null || !existingSession.UserAccount.IsActive)
         {
+            DeleteRefreshTokenCookie();
             await WriteAuditAsync(
                 eventType: "auth.refresh",
                 outcome: "Denied",
@@ -164,9 +169,28 @@ public sealed class AuthController : ControllerBase
             return Unauthorized("Sua sessão de acesso expirou. Entre novamente.");
         }
 
+        var idleTimeoutMinutes = _jwtOptions.SessionIdleMinutes <= 0 ? 30 : _jwtOptions.SessionIdleMinutes;
+        var idleCutoff = DateTime.UtcNow.AddMinutes(-idleTimeoutMinutes);
+        if (existingSession.LastSeenAtUtc < idleCutoff)
+        {
+            existingSession.RevokedAtUtc = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            DeleteRefreshTokenCookie();
+            await WriteAuditAsync(
+                eventType: "auth.refresh",
+                outcome: "Denied",
+                schoolId: existingSession.UserAccount.SchoolId,
+                userAccountId: existingSession.UserAccount.Id,
+                email: existingSession.UserAccount.Email,
+                metadata: new { reason = "idle_timeout" },
+                cancellationToken: cancellationToken);
+            return Unauthorized("Sua sessão expirou por inatividade. Entre novamente.");
+        }
+
         var schoolAccessError = await EnsureSchoolAllowsAccessAsync(existingSession.UserAccount, cancellationToken);
         if (schoolAccessError is not null)
         {
+            DeleteRefreshTokenCookie();
             await WriteAuditAsync(
                 eventType: "auth.refresh",
                 outcome: "Denied",
@@ -181,9 +205,10 @@ public sealed class AuthController : ControllerBase
         existingSession.RevokedAtUtc = DateTime.UtcNow;
         var rotatedSession = await IssueSessionAsync(
             existingSession.UserAccount,
-            request.DeviceName ?? existingSession.DeviceName,
+            request?.DeviceName ?? existingSession.DeviceName,
             existingSession.Id,
             cancellationToken);
+        WriteRefreshTokenCookie(rotatedSession.RefreshToken, rotatedSession.RefreshTokenExpiresAtUtc);
 
         await WriteAuditAsync(
             eventType: "auth.refresh",
@@ -193,19 +218,22 @@ public sealed class AuthController : ControllerBase
             email: existingSession.UserAccount.Email,
             metadata: new
             {
-                requestedDeviceName = request.DeviceName,
+                requestedDeviceName = request?.DeviceName,
                 previousDeviceName = existingSession.DeviceName
             },
             cancellationToken: cancellationToken);
 
-        return Ok(rotatedSession);
+        return Ok(ToLoginResponse(rotatedSession));
     }
 
     [AllowAnonymous]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        var providedRefreshToken = ResolveRefreshToken(request?.RefreshToken);
+        DeleteRefreshTokenCookie();
+
+        if (string.IsNullOrWhiteSpace(providedRefreshToken))
         {
             return Ok(new
             {
@@ -213,7 +241,7 @@ public sealed class AuthController : ControllerBase
             });
         }
 
-        var tokenHash = HashToken(request.RefreshToken);
+        var tokenHash = HashToken(providedRefreshToken);
         var session = await _dbContext.RefreshSessions.FirstOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken);
         if (session is not null && session.RevokedAtUtc is null)
         {
@@ -311,6 +339,7 @@ public sealed class AuthController : ControllerBase
             user,
             request.DeviceName,
             cancellationToken: cancellationToken);
+        WriteRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAtUtc);
 
         await RevokeOtherSessionsAsync(user.Id, cancellationToken);
         await WriteAuditAsync(
@@ -322,7 +351,7 @@ public sealed class AuthController : ControllerBase
             metadata: new { request.DeviceName },
             cancellationToken: cancellationToken);
 
-        return Ok(session);
+        return Ok(ToLoginResponse(session));
     }
 
     [AllowAnonymous]
@@ -425,6 +454,7 @@ public sealed class AuthController : ControllerBase
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var session = await IssueSessionAsync(user, request.DeviceName, cancellationToken: cancellationToken);
+        WriteRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAtUtc);
         await WriteAuditAsync(
             eventType: "auth.reset-password",
             outcome: "Succeeded",
@@ -434,10 +464,10 @@ public sealed class AuthController : ControllerBase
             metadata: new { request.DeviceName },
             cancellationToken: cancellationToken);
 
-        return Ok(session);
+        return Ok(ToLoginResponse(session));
     }
 
-    private async Task<LoginResponse> IssueSessionAsync(
+    private async Task<IssuedSession> IssueSessionAsync(
         UserAccount user,
         string? deviceName,
         Guid? revokedSessionId = null,
@@ -460,16 +490,20 @@ public sealed class AuthController : ControllerBase
             UserAccountId = user.Id,
             TokenHash = HashToken(refreshToken),
             DeviceName = NormalizeNullable(deviceName),
-            ExpiresAtUtc = refreshExpiresAtUtc
+            ExpiresAtUtc = refreshExpiresAtUtc,
+            LastSeenAtUtc = DateTime.UtcNow
         };
 
         _dbContext.RefreshSessions.Add(refreshSession);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return new LoginResponse(
+        var accessTokenExpiresAtUtc = DateTime.UtcNow.AddHours(_jwtOptions.AccessTokenHours);
+
+        return new IssuedSession(
             Token: CreateToken(user),
             RefreshToken: refreshToken,
             RefreshTokenExpiresAtUtc: refreshExpiresAtUtc,
+            AccessTokenExpiresAtUtc: accessTokenExpiresAtUtc,
             UserId: user.Id,
             SchoolId: user.SchoolId,
             Email: user.Email,
@@ -477,6 +511,17 @@ public sealed class AuthController : ControllerBase
             Permissions: user.GetEffectivePermissions(),
             MustChangePassword: user.MustChangePassword);
     }
+
+    private LoginResponse ToLoginResponse(IssuedSession session)
+        => new(
+            Token: session.Token,
+            AccessTokenExpiresAtUtc: session.AccessTokenExpiresAtUtc,
+            UserId: session.UserId,
+            SchoolId: session.SchoolId,
+            Email: session.Email,
+            Role: session.Role,
+            Permissions: session.Permissions,
+            MustChangePassword: session.MustChangePassword);
 
     private async Task RevokeAllSessionsAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -503,6 +548,59 @@ public sealed class AuthController : ControllerBase
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private string? ResolveRefreshToken(string? requestRefreshToken)
+    {
+        if (!string.IsNullOrWhiteSpace(requestRefreshToken))
+        {
+            return requestRefreshToken.Trim();
+        }
+
+        return Request.Cookies.TryGetValue(RefreshTokenCookieName, out var cookieValue)
+            ? cookieValue
+            : null;
+    }
+
+    private void WriteRefreshTokenCookie(string refreshToken, DateTime expiresAtUtc)
+    {
+        Response.Cookies.Append(
+            RefreshTokenCookieName,
+            refreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = IsSecureRequest(),
+                SameSite = SameSiteMode.Lax,
+                Expires = new DateTimeOffset(expiresAtUtc),
+                Path = "/identity/api/v1/auth"
+            });
+    }
+
+    private void DeleteRefreshTokenCookie()
+    {
+        Response.Cookies.Delete(
+            RefreshTokenCookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = IsSecureRequest(),
+                SameSite = SameSiteMode.Lax,
+                Path = "/identity/api/v1/auth"
+            });
+    }
+
+    private bool IsSecureRequest()
+    {
+        if (Request.IsHttps)
+        {
+            return true;
+        }
+
+        return string.Equals(
+            Request.Headers["X-Forwarded-Proto"].ToString(),
+            "https",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private string CreateToken(UserAccount user)
@@ -640,7 +738,7 @@ public sealed class AuthController : ControllerBase
 
     public sealed record LoginRequest(string Email, string Password, string? DeviceName = null);
 
-    public sealed record RefreshTokenRequest(string RefreshToken, string? DeviceName = null);
+    public sealed record RefreshTokenRequest(string? RefreshToken = null, string? DeviceName = null);
 
     public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword, string? DeviceName = null);
 
@@ -650,8 +748,19 @@ public sealed class AuthController : ControllerBase
 
     public sealed record LoginResponse(
         string Token,
+        DateTime AccessTokenExpiresAtUtc,
+        Guid UserId,
+        Guid? SchoolId,
+        string Email,
+        string Role,
+        IReadOnlyCollection<string> Permissions,
+        bool MustChangePassword);
+
+    private sealed record IssuedSession(
+        string Token,
         string RefreshToken,
         DateTime RefreshTokenExpiresAtUtc,
+        DateTime AccessTokenExpiresAtUtc,
         Guid UserId,
         Guid? SchoolId,
         string Email,

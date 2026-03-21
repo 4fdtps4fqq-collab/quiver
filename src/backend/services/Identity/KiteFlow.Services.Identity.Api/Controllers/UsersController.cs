@@ -105,6 +105,18 @@ public sealed class UsersController : ControllerBase
         _dbContext.UserAccounts.Add(user);
         await _dbContext.SaveChangesAsync();
 
+        IdentityEmailDeliveryResult? delivery = null;
+        if (request.DeliverTemporaryPasswordByEmail)
+        {
+            delivery = await _emailDeliveryService.SendTemporaryPasswordAsync(
+                new TemporaryPasswordEmailMessage(
+                    FullName: string.IsNullOrWhiteSpace(request.FullName) ? user.Email : request.FullName.Trim(),
+                    Email: user.Email,
+                    ScopeLabel: string.IsNullOrWhiteSpace(request.ScopeLabel) ? schoolId.ToString() : request.ScopeLabel.Trim(),
+                    TemporaryPassword: request.Password),
+                CancellationToken.None);
+        }
+
         await _auditService.WriteAsync(
             eventType: "identity.user.create",
             outcome: "Succeeded",
@@ -116,7 +128,10 @@ public sealed class UsersController : ControllerBase
             {
                 role = user.Role.ToString(),
                 user.IsActive,
-                user.MustChangePassword
+                user.MustChangePassword,
+                deliveredByEmail = request.DeliverTemporaryPasswordByEmail,
+                deliveryMode = delivery?.Mode,
+                delivery?.OutboxFilePath
             });
 
         return CreatedAtAction(nameof(GetAll), new { id = user.Id }, new
@@ -126,7 +141,9 @@ public sealed class UsersController : ControllerBase
             role = user.Role.ToString(),
             permissions = user.GetEffectivePermissions(),
             user.IsActive,
-            user.MustChangePassword
+            user.MustChangePassword,
+            deliveryMode = delivery?.Mode,
+            outboxFilePath = delivery?.OutboxFilePath
         });
     }
 
@@ -211,6 +228,22 @@ public sealed class UsersController : ControllerBase
             return NotFound();
         }
 
+        var normalizedEmail = NormalizeEmail(request.Email);
+        if (!string.IsNullOrWhiteSpace(normalizedEmail) &&
+            !string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            var emailInUse = await _dbContext.UserAccounts.AnyAsync(
+                x => x.Id != user.Id && x.Email == normalizedEmail,
+                cancellationToken);
+
+            if (emailInUse)
+            {
+                return Conflict("Já existe uma conta cadastrada com esse e-mail.");
+            }
+
+            user.Email = normalizedEmail;
+        }
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.TemporaryPassword);
         user.MustChangePassword = request.MustChangePassword;
         user.IsActive = true;
@@ -231,9 +264,9 @@ public sealed class UsersController : ControllerBase
         {
             delivery = await _emailDeliveryService.SendTemporaryPasswordAsync(
                 new TemporaryPasswordEmailMessage(
-                    FullName: user.Email,
+                    FullName: string.IsNullOrWhiteSpace(request.FullName) ? user.Email : request.FullName.Trim(),
                     Email: user.Email,
-                    ScopeLabel: schoolId.ToString(),
+                    ScopeLabel: string.IsNullOrWhiteSpace(request.ScopeLabel) ? schoolId.ToString() : request.ScopeLabel.Trim(),
                     TemporaryPassword: request.TemporaryPassword),
                 cancellationToken);
         }
@@ -270,7 +303,10 @@ public sealed class UsersController : ControllerBase
         PlatformRole Role,
         IReadOnlyCollection<string>? Permissions,
         bool MustChangePassword,
-        bool IsActive);
+        bool IsActive,
+        bool DeliverTemporaryPasswordByEmail = false,
+        string? FullName = null,
+        string? ScopeLabel = null);
 
     public sealed record UpdateUserRequest(
         PlatformRole Role,
@@ -281,5 +317,11 @@ public sealed class UsersController : ControllerBase
     public sealed record ResetPasswordRequest(
         string TemporaryPassword,
         bool MustChangePassword = true,
-        bool DeliverByEmail = true);
+        bool DeliverByEmail = true,
+        string? Email = null,
+        string? FullName = null,
+        string? ScopeLabel = null);
+
+    private static string NormalizeEmail(string? email)
+        => (email ?? string.Empty).Trim().ToLowerInvariant();
 }

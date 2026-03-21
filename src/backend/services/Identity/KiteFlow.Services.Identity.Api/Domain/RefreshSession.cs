@@ -16,5 +16,7 @@ public sealed class RefreshSession
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    public DateTime LastSeenAtUtc { get; set; } = DateTime.UtcNow;
+
     public UserAccount? UserAccount { get; set; }
 }

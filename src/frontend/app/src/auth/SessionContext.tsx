@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode
 } from "react";
@@ -18,6 +19,7 @@ import {
   refreshSessionRequest,
   type LoginPayload
 } from "../lib/auth-api";
+import { registerAuthRefreshHandler } from "../lib/api";
 
 export type Role = "SystemAdmin" | "Owner" | "Admin" | "Instructor" | "Student";
 
@@ -52,14 +54,6 @@ export type SessionUser = {
   mustChangePassword: boolean;
 };
 
-type StoredSession = {
-  token: string;
-  refreshToken: string | null;
-  refreshTokenExpiresAtUtc: string | null;
-  user: SessionUser;
-  school: SessionSchool | null;
-};
-
 type SessionContextValue = {
   user: SessionUser | null;
   school: SessionSchool | null;
@@ -73,33 +67,66 @@ type SessionContextValue = {
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
-const storageKey = "kiteflow-platform-session";
 const defaultSchoolName = "Quiver School";
 const defaultSystemAdminArea = "Administração da plataforma";
+const clientIdleTimeoutMs = 30 * 60 * 1000;
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [school, setSchool] = useState<SessionSchool | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
-  const [refreshTokenExpiresAtUtc, setRefreshTokenExpiresAtUtc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const idleTimerRef = useRef<number | null>(null);
+  const tokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) {
-      setIsLoading(false);
+    void hydrateFromRefreshCookie();
+  }, []);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
+  useEffect(() => {
+    registerAuthRefreshHandler(async () => {
+      try {
+        const refreshed = await refreshSessionRequest({
+          deviceName: resolveDeviceName()
+        });
+
+        await loadSession(refreshed.token);
+        return refreshed.token;
+      } catch {
+        clearSession();
+        return null;
+      }
+    });
+
+    return () => registerAuthRefreshHandler(null);
+  }, []);
+
+  useEffect(() => {
+    if (!token || !user) {
+      clearIdleTimer();
       return;
     }
 
-    try {
-      const stored = JSON.parse(raw) as StoredSession;
-      void hydrate(stored.token, stored.refreshToken, stored.refreshTokenExpiresAtUtc);
-    } catch {
-      clearSession();
-      setIsLoading(false);
-    }
-  }, []);
+    const activityEvents: Array<keyof WindowEventMap> = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    const resetIdleTimer = () => {
+      clearIdleTimer();
+      idleTimerRef.current = window.setTimeout(() => {
+        void handleIdleTimeout();
+      }, clientIdleTimeoutMs);
+    };
+
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetIdleTimer));
+      clearIdleTimer();
+    };
+  }, [token, user]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -113,88 +140,59 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           deviceName: payload.deviceName ?? resolveDeviceName()
         });
 
-        return hydrate(session.token, session.refreshToken, session.refreshTokenExpiresAtUtc);
+        return loadSession(session.token);
       },
       acceptInvite: async (payload) => {
         const response = await acceptInvitation(payload);
-        return hydrate(
-          response.session.token,
-          response.session.refreshToken,
-          response.session.refreshTokenExpiresAtUtc
-        );
+        const session = await loginRequest({
+          email: response.session.email,
+          password: payload.password,
+          deviceName: resolveDeviceName()
+        });
+
+        return loadSession(session.token);
       },
       previewInvite: (inviteToken) => previewInvitation(inviteToken),
       changePassword: async (payload) => {
-        if (!token) {
+        if (!tokenRef.current) {
           throw new Error("Sessão não encontrada.");
         }
 
-        const session = await changePasswordRequest(token, {
+        const session = await changePasswordRequest(tokenRef.current, {
           ...payload,
           deviceName: resolveDeviceName()
         });
 
-        await hydrate(session.token, session.refreshToken, session.refreshTokenExpiresAtUtc);
+        await loadSession(session.token);
       },
       logout: async () => {
-        if (refreshToken) {
-          try {
-            await logoutSessionRequest({ refreshToken });
-          } catch {
-            // Ignoramos erros de logout remoto para garantir a limpeza local da sessão.
-          }
+        try {
+          await logoutSessionRequest();
+        } catch {
+          // A limpeza local segue sendo obrigatória.
         }
 
         clearSession();
       }
     }),
-    [isLoading, refreshToken, refreshTokenExpiresAtUtc, school, token, user]
+    [isLoading, school, token, user]
   );
 
-  async function hydrate(
-    nextToken: string | null,
-    nextRefreshToken: string | null,
-    nextRefreshTokenExpiresAtUtc: string | null
-  ) {
+  async function hydrateFromRefreshCookie() {
     try {
       setIsLoading(true);
-
-      if (!nextToken) {
-        throw new Error("Sessão sem token de acesso.");
-      }
-
-      return await loadSession(nextToken, nextRefreshToken, nextRefreshTokenExpiresAtUtc);
+      const refreshed = await refreshSessionRequest({
+        deviceName: resolveDeviceName()
+      });
+      await loadSession(refreshed.token);
     } catch {
-      if (nextRefreshToken) {
-        try {
-          const refreshed = await refreshSessionRequest({
-            refreshToken: nextRefreshToken,
-            deviceName: resolveDeviceName()
-          });
-
-          return await loadSession(
-            refreshed.token,
-            refreshed.refreshToken,
-            refreshed.refreshTokenExpiresAtUtc
-          );
-        } catch {
-          clearSession();
-          throw new Error("Não foi possível renovar sua sessão. Entre novamente.");
-        }
-      }
-
       clearSession();
-      throw new Error("Não foi possível carregar a sessão.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function loadSession(
-    nextToken: string,
-    nextRefreshToken: string | null,
-    nextRefreshTokenExpiresAtUtc: string | null
-  ) {
+  async function loadSession(nextToken: string) {
     const identity = await getIdentityMe(nextToken);
 
     const shouldLoadSchoolContext =
@@ -262,30 +260,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       mustChangePassword: identity.mustChangePassword
     };
 
-    window.localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        token: nextToken,
-        refreshToken: nextRefreshToken,
-        refreshTokenExpiresAtUtc: nextRefreshTokenExpiresAtUtc,
-        user: nextUser,
-        school: nextSchool
-      } satisfies StoredSession)
-    );
-
     setToken(nextToken);
-    setRefreshToken(nextRefreshToken);
-    setRefreshTokenExpiresAtUtc(nextRefreshTokenExpiresAtUtc);
     setUser(nextUser);
     setSchool(nextSchool);
     return nextUser;
   }
 
+  async function handleIdleTimeout() {
+    if (!tokenRef.current) {
+      return;
+    }
+
+    try {
+      await logoutSessionRequest();
+    } catch {
+      // A limpeza local segue sendo obrigatória mesmo sem resposta remota.
+    }
+
+    clearSession();
+  }
+
+  function clearIdleTimer() {
+    if (idleTimerRef.current !== null) {
+      window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }
+
   function clearSession() {
-    window.localStorage.removeItem(storageKey);
+    clearIdleTimer();
     setToken(null);
-    setRefreshToken(null);
-    setRefreshTokenExpiresAtUtc(null);
     setUser(null);
     setSchool(null);
   }

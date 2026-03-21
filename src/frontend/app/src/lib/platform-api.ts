@@ -1040,6 +1040,21 @@ export function updateStudent(token: string, studentId: string, body: {
   });
 }
 
+export function issueStudentPortalAccess(token: string, studentId: string) {
+  return apiRequest<{
+    studentId: string;
+    identityUserId: string;
+    createdNewAccount: boolean;
+    mustChangePassword: boolean;
+    deliveryMode?: string;
+    outboxFilePath?: string;
+    issuedAtUtc: string;
+  }>(`/api/v1/students/${studentId}/portal-access`, {
+    method: "POST",
+    token
+  });
+}
+
 export function getInstructors(token: string) {
   return apiRequest<Instructor[]>("/academics/api/v1/instructors", { token });
 }

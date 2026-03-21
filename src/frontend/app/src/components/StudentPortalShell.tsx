@@ -1,6 +1,7 @@
 import { BellRing, Compass, LayoutDashboard, LogOut, ScrollText, UserRound, Waves } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useSession } from "../auth/SessionContext";
+import { PasswordPolicyBanner } from "./PasswordPolicyBanner";
 import { resolveStudentPortalTheme } from "../lib/student-portal-theme";
 export function StudentPortalShell() {
   const { user, school, logout } = useSession();
@@ -97,7 +98,17 @@ export function StudentPortalShell() {
         </header>
 
         <main className="pb-24 pt-6 md:pb-6">
-          <Outlet />
+          <PasswordPolicyBanner />
+          {user?.mustChangePassword ? (
+            <section
+              className="rounded-[28px] px-5 py-6 text-sm text-slate-800 shadow-[var(--app-shadow-soft)]"
+              style={{ border: `1px solid ${theme.frame}`, background: "rgba(255,255,255,0.72)" }}
+            >
+              O portal do aluno será liberado assim que a senha temporária for substituída.
+            </section>
+          ) : (
+            <Outlet />
+          )}
         </main>
 
         <nav className="fixed inset-x-4 bottom-4 z-20 grid grid-cols-4 gap-2 rounded-[28px] border border-white/40 bg-slate-950/88 p-2 shadow-2xl backdrop-blur-2xl md:hidden">

@@ -41,6 +41,13 @@ await using (var scope = app.Services.CreateAsyncScope())
         ADD COLUMN IF NOT EXISTS "PermissionsJson" text NULL;
         """);
     await dbContext.Database.ExecuteSqlRawAsync("""
+        ALTER TABLE refresh_sessions
+        ADD COLUMN IF NOT EXISTS "LastSeenAtUtc" timestamp with time zone NULL;
+
+        UPDATE refresh_sessions
+        SET "LastSeenAtUtc" = COALESCE("LastSeenAtUtc", "CreatedAtUtc");
+        """);
+    await dbContext.Database.ExecuteSqlRawAsync("""
         CREATE TABLE IF NOT EXISTS password_reset_tokens (
             "Id" uuid PRIMARY KEY,
             "UserAccountId" uuid NOT NULL REFERENCES user_accounts("Id") ON DELETE CASCADE,

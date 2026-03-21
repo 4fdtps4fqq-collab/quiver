@@ -1,10 +1,12 @@
 import { Outlet, useLocation } from "react-router-dom";
+import { useSession } from "../auth/SessionContext";
 import { PasswordPolicyBanner } from "./PasswordPolicyBanner";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function AppShell() {
   const location = useLocation();
+  const { user } = useSession();
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--q-text)]">
@@ -21,7 +23,13 @@ export function AppShell() {
           <>
             <Topbar />
             <PasswordPolicyBanner />
-            <Outlet />
+            {user?.mustChangePassword ? (
+              <section className="rounded-[28px] border border-[var(--q-warning)]/30 bg-[var(--q-warning-bg)] px-5 py-5 text-sm text-[var(--q-text)]">
+                O uso completo da plataforma será liberado assim que a senha temporária for substituída.
+              </section>
+            ) : (
+              <Outlet />
+            )}
           </>
         </main>
       </div>

@@ -48,6 +48,7 @@ public sealed class IdentityDbContext : DbContext
             entity.Property(x => x.DeviceName).HasMaxLength(150);
             entity.Property(x => x.ExpiresAtUtc).IsRequired();
             entity.Property(x => x.CreatedAtUtc).IsRequired();
+            entity.Property(x => x.LastSeenAtUtc).IsRequired();
 
             entity.HasOne(x => x.UserAccount)
                 .WithMany()

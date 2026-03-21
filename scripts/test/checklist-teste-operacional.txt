@@ -1,0 +1,120 @@
+CHECKLIST OPERACIONAL DE TESTE - KITEFLOW / QUIVER
+Versao: 1.0
+Data: 21/03/2026
+
+INSTRUCOES
+- Marcar cada item como OK, NOK ou N/A
+- Registrar evidencia quando houver NOK
+- Usar este checklist antes de publicacao ou validacao final
+
+DADOS DA EXECUCAO
+- Ambiente:
+- Data:
+- Responsavel:
+- Versao/Commit:
+
+CHECKLIST 1 - ACESSO E SESSAO
+[ ] Login do SystemAdmin funcionando
+[ ] Login do Owner funcionando
+[ ] Login do Administrativo funcionando
+[ ] Login do Aluno funcionando
+[ ] Logout funcionando
+[ ] Sessao expira corretamente por inatividade
+[ ] Troca obrigatoria de senha funciona no primeiro acesso
+[ ] Recuperacao de senha envia e-mail corretamente
+
+CHECKLIST 2 - MULTI-TENANT
+[ ] Escola A nao enxerga dados da Escola B
+[ ] Escola B nao enxerga dados da Escola A
+[ ] Financeiro da Escola A esta isolado
+[ ] Financeiro da Escola B esta isolado
+[ ] Aluno ativo nao pode existir em duas escolas
+[ ] Instrutor ativo nao pode existir em duas escolas
+
+CHECKLIST 3 - SYSTEMADMIN
+[ ] Criacao de escola funcionando
+[ ] Edicao de escola funcionando
+[ ] Inativacao de escola funcionando
+[ ] Reativacao de escola funcionando
+[ ] Logo da escola refletida no sistema
+[ ] Dono da escola recebe senha temporaria por e-mail
+
+CHECKLIST 4 - ADMINISTRACAO DA ESCOLA
+[ ] Criacao de colaborador administrativo funcionando
+[ ] Criacao de colaborador instrutor funcionando
+[ ] Permissoes granulares funcionando
+[ ] Reset de senha de colaborador funcionando
+[ ] Desativacao respeita regras de impacto
+
+CHECKLIST 5 - ALUNOS
+[ ] Cadastro de aluno funcionando
+[ ] Edicao de aluno funcionando
+[ ] Busca por nome/telefone funcionando
+[ ] Endereco por CEP funcionando
+[ ] Envio de acesso ao portal funcionando
+[ ] Reset de senha do portal do aluno funcionando
+[ ] Aluno recebe senha temporaria por e-mail
+
+CHECKLIST 6 - PORTAL DO ALUNO
+[ ] Primeiro acesso exige troca de senha
+[ ] Portal libera acesso apos troca de senha
+[ ] Visao geral do portal carrega corretamente
+[ ] Historico carrega corretamente
+[ ] Notificacoes carregam corretamente
+[ ] Perfil do aluno salva corretamente
+[ ] Restricoes por inadimplencia funcionam
+
+CHECKLIST 7 - CURSOS, MATRICULAS E AGENDA
+[ ] Criacao de curso funcionando
+[ ] Criacao de matricula funcionando
+[ ] Progresso do aluno atualiza corretamente
+[ ] Criacao de aula avulsa funcionando
+[ ] Criacao de aula de curso funcionando
+[ ] Conflitos de agenda sao bloqueados
+[ ] Confirmacao operacional de aula funciona
+[ ] No-show aplica regra configurada
+[ ] Remarcacao funciona corretamente
+
+CHECKLIST 8 - EQUIPAMENTOS E MANUTENCAO
+[ ] Cadastro de equipamento funcionando
+[ ] Disponibilidade por agenda funcionando
+[ ] Reserva previa funcionando
+[ ] Conflito de reserva bloqueado
+[ ] Cadastro de kit funcionando
+[ ] Manutencao de item proprio gera despesa
+[ ] Manutencao de item de terceiro gera receita
+[ ] Historico de vida util do equipamento funciona
+
+CHECKLIST 9 - FINANCEIRO
+[ ] Categorias financeiras por escola funcionando
+[ ] Centros de custo funcionando
+[ ] Receita manual funcionando
+[ ] Despesa manual funcionando
+[ ] Contas a receber funcionando
+[ ] Contas a pagar funcionando
+[ ] Conciliacao manual funcionando
+[ ] Integracao automatica com matricula/aula funcionando
+[ ] Margem por curso funciona
+[ ] Margem por instrutor funciona
+[ ] Exportacao financeira funciona
+
+CHECKLIST 10 - PUBLICACAO E DOMINIO
+[ ] Sistema funciona em localhost
+[ ] Sistema funciona em app.quivercloud.com.br
+[ ] Login funciona em localhost
+[ ] Login funciona no dominio publicado
+[ ] IIS sem erro 500.19
+[ ] Proxy/tunel funcionando corretamente
+[ ] Envio de e-mail funcionando em ambiente publicado
+
+CHECKLIST 11 - SEGURANCA
+[ ] Nenhum token sensivel em localStorage
+[ ] Cookie de sessao configurado corretamente
+[ ] Erros exibidos sem stack trace para o usuario
+[ ] Perfis sem permissao nao acessam modulos restritos
+[ ] Escola inativa nao consegue operar
+
+RESULTADO FINAL
+- Status geral:
+- Bloqueadores encontrados:
+- Observacoes:

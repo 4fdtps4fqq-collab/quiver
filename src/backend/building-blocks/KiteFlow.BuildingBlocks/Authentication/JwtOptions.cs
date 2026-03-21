@@ -13,4 +13,6 @@ public sealed class JwtOptions
     public int AccessTokenHours { get; set; } = 8;
 
     public int RefreshTokenDays { get; set; } = 14;
+
+    public int SessionIdleMinutes { get; set; } = 30;
 }

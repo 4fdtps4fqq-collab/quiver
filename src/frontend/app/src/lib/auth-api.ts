@@ -9,8 +9,7 @@ export type LoginPayload = {
 
 export type LoginResponse = {
   token: string;
-  refreshToken: string;
-  refreshTokenExpiresAtUtc: string;
+  accessTokenExpiresAtUtc: string;
   userId: string;
   schoolId: string | null;
   email: string;
@@ -129,17 +128,17 @@ export function loginRequest(payload: LoginPayload) {
   });
 }
 
-export function refreshSessionRequest(payload: { refreshToken: string; deviceName?: string }) {
+export function refreshSessionRequest(payload?: { deviceName?: string }) {
   return apiRequest<LoginResponse>("/identity/api/v1/auth/refresh", {
     method: "POST",
     body: payload
   });
 }
 
-export function logoutSessionRequest(payload: { refreshToken: string }) {
+export function logoutSessionRequest() {
   return apiRequest<{ loggedOutAtUtc: string }>("/identity/api/v1/auth/logout", {
     method: "POST",
-    body: payload
+    body: {}
   });
 }
 

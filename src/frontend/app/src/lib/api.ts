@@ -1,9 +1,11 @@
 const apiBaseUrl = resolveApiBaseUrl();
+let authRefreshHandler: (() => Promise<string | null>) | null = null;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string;
+  _retryAfterRefresh?: boolean;
 };
 
 export class ApiRequestError extends Error {
@@ -42,6 +44,10 @@ export function getApiBaseUrl() {
   return apiBaseUrl;
 }
 
+export function registerAuthRefreshHandler(handler: (() => Promise<string | null>) | null) {
+  authRefreshHandler = handler;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
   const requestUrl = `${apiBaseUrl}${path}`;
@@ -53,6 +59,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         "Content-Type": "application/json",
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
       },
+      credentials: "include",
       body: options.body ? JSON.stringify(options.body) : undefined
     });
   } catch (cause) {
@@ -66,6 +73,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       path,
       requestUrl
     });
+  }
+
+  if (response.status === 401 && options.token && !options._retryAfterRefresh && authRefreshHandler) {
+    const refreshedToken = await authRefreshHandler();
+    if (refreshedToken) {
+      return apiRequest<T>(path, {
+        ...options,
+        token: refreshedToken,
+        _retryAfterRefresh: true
+      });
+    }
   }
 
   const text = await response.text();
@@ -99,7 +117,8 @@ export async function apiDownload(path: string, token: string): Promise<Blob> {
       method,
       headers: {
         Authorization: `Bearer ${token}`
-      }
+      },
+      credentials: "include"
     });
   } catch (cause) {
     const message =
@@ -112,6 +131,13 @@ export async function apiDownload(path: string, token: string): Promise<Blob> {
       path,
       requestUrl
     });
+  }
+
+  if (response.status === 401 && authRefreshHandler) {
+    const refreshedToken = await authRefreshHandler();
+    if (refreshedToken) {
+      return apiDownload(path, refreshedToken);
+    }
   }
 
   if (!response.ok) {

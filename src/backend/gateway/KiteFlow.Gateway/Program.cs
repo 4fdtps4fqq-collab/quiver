@@ -25,7 +25,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 builder.Services.AddKiteFlowDownstreamClient("identity", builder.Configuration, "DownstreamServices:Identity");
