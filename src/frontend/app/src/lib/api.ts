@@ -1,4 +1,4 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:7000";
+const apiBaseUrl = resolveApiBaseUrl();
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -6,11 +6,49 @@ type RequestOptions = {
   token?: string;
 };
 
+export class ApiRequestError extends Error {
+  status?: number;
+  method: string;
+  path: string;
+  requestUrl: string;
+  responseText?: string;
+  payload?: unknown;
+  occurredAtUtc: string;
+
+  constructor(
+    message: string,
+    options: {
+      status?: number;
+      method: string;
+      path: string;
+      requestUrl: string;
+      responseText?: string;
+      payload?: unknown;
+    }
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = options.status;
+    this.method = options.method;
+    this.path = options.path;
+    this.requestUrl = options.requestUrl;
+    this.responseText = options.responseText;
+    this.payload = options.payload;
+    this.occurredAtUtc = new Date().toISOString();
+  }
+}
+
+export function getApiBaseUrl() {
+  return apiBaseUrl;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = options.method ?? "GET";
+  const requestUrl = `${apiBaseUrl}${path}`;
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
-      method: options.method ?? "GET",
+    response = await fetch(requestUrl, {
+      method,
       headers: {
         "Content-Type": "application/json",
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
@@ -23,7 +61,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         ? "Não foi possível concluir a comunicação com a plataforma agora. Tente novamente em instantes."
         : "Não foi possível concluir a comunicação com a plataforma.";
 
-    throw new Error(message);
+    throw new ApiRequestError(message, {
+      method,
+      path,
+      requestUrl
+    });
   }
 
   const text = await response.text();
@@ -35,17 +77,26 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       (typeof payload === "string" ? payload : null) ??
       `A requisição falhou com status ${response.status}.`;
 
-    throw new Error(message);
+    throw new ApiRequestError(message, {
+      status: response.status,
+      method,
+      path,
+      requestUrl,
+      responseText: text,
+      payload
+    });
   }
 
   return payload as T;
 }
 
 export async function apiDownload(path: string, token: string): Promise<Blob> {
+  const method = "GET";
+  const requestUrl = `${apiBaseUrl}${path}`;
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
-      method: "GET",
+    response = await fetch(requestUrl, {
+      method,
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -56,7 +107,11 @@ export async function apiDownload(path: string, token: string): Promise<Blob> {
         ? "Não foi possível concluir a comunicação com a plataforma agora. Tente novamente em instantes."
         : "Não foi possível concluir a comunicação com a plataforma.";
 
-    throw new Error(message);
+    throw new ApiRequestError(message, {
+      method,
+      path,
+      requestUrl
+    });
   }
 
   if (!response.ok) {
@@ -67,7 +122,14 @@ export async function apiDownload(path: string, token: string): Promise<Blob> {
       (typeof payload === "string" ? payload : null) ??
       `A requisição falhou com status ${response.status}.`;
 
-    throw new Error(message);
+    throw new ApiRequestError(message, {
+      status: response.status,
+      method,
+      path,
+      requestUrl,
+      responseText: text,
+      payload
+    });
   }
 
   return response.blob();
@@ -100,4 +162,21 @@ function extractMessage(payload: unknown): string | null {
   }
 
   return null;
+}
+
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (import.meta.env.DEV) {
+    return "http://localhost:7000";
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "http://localhost:7000";
 }

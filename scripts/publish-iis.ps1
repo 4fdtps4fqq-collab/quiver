@@ -1,6 +1,10 @@
 param(
     [string]$Configuration = "Release",
     [string]$OutputRoot = "",
+    [string]$FrontendApiBaseUrl = "",
+    [string]$IdentityPublicLoginUrl = "",
+    [string[]]$GatewayAllowedOrigins = @(),
+    [string]$FrontendGatewayProxyUrl = "http://localhost:7000",
     [switch]$SkipIisConfiguration
 )
 
@@ -23,6 +27,17 @@ function Ensure-Directory {
     New-Item -ItemType Directory -Force -Path $Path | Out-Null
 }
 
+function Update-JsonFile {
+    param(
+        [string]$Path,
+        [scriptblock]$Mutator
+    )
+
+    $json = Get-Content -Path $Path -Raw | ConvertFrom-Json
+    & $Mutator $json
+    $json | ConvertTo-Json -Depth 100 | Set-Content -Path $Path -Encoding UTF8
+}
+
 function Test-IsAdministrator {
     $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
@@ -39,14 +54,23 @@ function Reset-DirectoryContents {
 }
 
 function Write-FrontendWebConfig {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [string]$GatewayProxyUrl
+    )
 
-    $content = @'
+    $escapedGatewayProxyUrl = $GatewayProxyUrl.TrimEnd('/')
+
+    $content = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <system.webServer>
     <rewrite>
       <rules>
+        <rule name="Gateway Proxy" stopProcessing="true">
+          <match url="^(identity|schools|academics|equipment|finance|reporting|api)(/.*)?$" />
+          <action type="Rewrite" url="$escapedGatewayProxyUrl/{R:0}" logRewrittenUrl="true" />
+        </rule>
         <rule name="SPA Routes" stopProcessing="true">
           <match url=".*" />
           <conditions logicalGrouping="MatchAll">
@@ -62,7 +86,7 @@ function Write-FrontendWebConfig {
     </staticContent>
   </system.webServer>
 </configuration>
-'@
+"@
 
     Set-Content -Path $Path -Value $content -Encoding UTF8
 }
@@ -136,20 +160,56 @@ foreach ($item in $projects) {
 
 $frontendPath = Join-Path $root "src\frontend\app"
 $frontendOutput = Join-Path $OutputRoot "frontend"
+$frontendEnvFile = Join-Path $frontendPath ".env.production.local"
+$createdFrontendEnvFile = $false
 
 Write-Host ""
 Write-Host "Buildando frontend..."
 
 Push-Location $frontendPath
 
-npm run build
-Assert-LastExitCode "npm run build do frontend"
+try {
+    if (-not [string]::IsNullOrWhiteSpace($FrontendApiBaseUrl)) {
+        Set-Content -Path $frontendEnvFile -Value "VITE_API_BASE_URL=$FrontendApiBaseUrl" -Encoding UTF8
+        $createdFrontendEnvFile = $true
+    }
 
-Pop-Location
+    npm run build
+    Assert-LastExitCode "npm run build do frontend"
+}
+finally {
+    if ($createdFrontendEnvFile -and (Test-Path $frontendEnvFile)) {
+        Remove-Item $frontendEnvFile -Force
+    }
+
+    Pop-Location
+}
 
 Reset-DirectoryContents -Path $frontendOutput
 Copy-Item -Path (Join-Path $frontendPath "dist\*") -Destination $frontendOutput -Recurse -Force
-Write-FrontendWebConfig -Path (Join-Path $frontendOutput "web.config")
+Write-FrontendWebConfig -Path (Join-Path $frontendOutput "web.config") -GatewayProxyUrl $FrontendGatewayProxyUrl
+
+if (-not [string]::IsNullOrWhiteSpace($IdentityPublicLoginUrl)) {
+    Update-JsonFile -Path (Join-Path $OutputRoot "identity\appsettings.json") -Mutator {
+        param($json)
+        if (-not $json.IdentityEmailDelivery) {
+            $json | Add-Member -NotePropertyName IdentityEmailDelivery -NotePropertyValue ([pscustomobject]@{})
+        }
+
+        $json.IdentityEmailDelivery.PublicLoginUrl = $IdentityPublicLoginUrl
+    }
+}
+
+if ($GatewayAllowedOrigins.Count -gt 0) {
+    Update-JsonFile -Path (Join-Path $OutputRoot "gateway\appsettings.json") -Mutator {
+        param($json)
+        if (-not $json.Cors) {
+            $json | Add-Member -NotePropertyName Cors -NotePropertyValue ([pscustomobject]@{})
+        }
+
+        $json.Cors.AllowedOrigins = $GatewayAllowedOrigins
+    }
+}
 
 if (-not $SkipIisConfiguration) {
     Write-Host ""

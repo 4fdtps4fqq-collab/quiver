@@ -16,12 +16,14 @@ builder.Services.AddOptions<OwnerCredentialDeliveryOptions>()
     .Bind(builder.Configuration.GetSection(OwnerCredentialDeliveryOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddScoped<IOwnerCredentialDeliveryService, OwnerCredentialDeliveryService>();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+    new[] { "http://localhost:5174" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5174")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
