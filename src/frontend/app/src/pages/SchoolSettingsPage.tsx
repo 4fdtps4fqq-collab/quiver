@@ -147,6 +147,7 @@ export function SchoolSettingsPage() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
+                <QuickLink to="/school/course-catalog" label="Níveis de curso" description="Configurar níveis e trilha pedagógica." />
                 <QuickLink to="/school/collaborators" label="Colaboradores" description="Cadastrar administrativos e instrutores." />
                 <QuickLink to="/school/instructors/schedule" label="Agenda dos instrutores" description="Gerir disponibilidade real e bloqueios." />
                 <QuickLink to="/school/invitations" label="Convites" description="Onboarding guiado por e-mail." />

@@ -1,6 +1,7 @@
 using KiteFlow.BuildingBlocks.MultiTenancy;
 using KiteFlow.Services.Academics.Api.Data;
 using KiteFlow.Services.Academics.Api.Domain;
+using KiteFlow.Services.Academics.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,15 +27,20 @@ public sealed class CoursesController : ControllerBase
     {
         _currentTenant.EnsureTenant();
         var schoolId = _currentTenant.SchoolId!.Value;
+        var levelSettings = await CourseLevelCatalogDefaults.EnsureDefaultsAsync(_dbContext, schoolId);
+        var levelLookup = levelSettings
+            .GroupBy(x => x.LevelValue)
+            .ToDictionary(x => x.Key, x => x.OrderBy(item => item.SortOrder).First());
+        var trackLookup = levelSettings.ToDictionary(x => x.Id);
 
         var items = await _dbContext.Courses
             .Where(x => x.SchoolId == schoolId)
-            .OrderBy(x => x.Level)
             .Select(x => new
             {
                 x.Id,
                 x.Name,
-                level = x.Level.ToString(),
+                levelValue = (int)x.Level,
+                x.CourseLevelSettingId,
                 x.TotalMinutes,
                 totalHours = Math.Round(x.TotalMinutes / 60m, 2),
                 x.Price,
@@ -42,16 +48,29 @@ public sealed class CoursesController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(items.Select(x => new
+        return Ok(items
+            .OrderBy(x => levelLookup.TryGetValue(x.levelValue, out var setting) ? setting.SortOrder : x.levelValue)
+            .Select(x => new
         {
             x.Id,
             x.Name,
-            x.level,
+            level = CourseLevelCatalogDefaults.TranslateLevelName(x.levelValue),
+            x.levelValue,
+            trackTemplateId = x.CourseLevelSettingId,
+            trackTemplateName = x.CourseLevelSettingId.HasValue && trackLookup.TryGetValue(x.CourseLevelSettingId.Value, out var selectedTrack)
+                ? selectedTrack.Name
+                : levelLookup.TryGetValue(x.levelValue, out var defaultTrack)
+                    ? defaultTrack.Name
+                    : "Trilha padrão",
             x.TotalMinutes,
             x.totalHours,
             x.Price,
             x.IsActive,
-            pedagogicalTrack = BuildPedagogicalTrack(x.level, x.TotalMinutes)
+            pedagogicalTrack = CourseLevelCatalogDefaults.BuildPedagogicalTrack(
+                x.CourseLevelSettingId.HasValue && trackLookup.TryGetValue(x.CourseLevelSettingId.Value, out var configuredTrack)
+                    ? configuredTrack
+                    : levelLookup.TryGetValue(x.levelValue, out var fallbackTrack) ? fallbackTrack : null,
+                x.TotalMinutes)
         }));
     }
 
@@ -72,6 +91,7 @@ public sealed class CoursesController : ControllerBase
             SchoolId = schoolId,
             Name = request.Name.Trim(),
             Level = request.Level,
+            CourseLevelSettingId = request.TrackTemplateId,
             TotalMinutes = ToMinutes(request.TotalHours),
             Price = request.Price,
             IsActive = true
@@ -102,6 +122,7 @@ public sealed class CoursesController : ControllerBase
 
         course.Name = request.Name.Trim();
         course.Level = request.Level;
+        course.CourseLevelSettingId = request.TrackTemplateId;
         course.TotalMinutes = ToMinutes(request.TotalHours);
         course.Price = request.Price;
         course.IsActive = request.IsActive;
@@ -131,14 +152,30 @@ public sealed class CoursesController : ControllerBase
             return BadRequest("O preço do curso não pode ser negativo.");
         }
 
-        var duplicateLevel = await _dbContext.Courses.AnyAsync(x =>
-            x.SchoolId == schoolId &&
-            x.Level == request.Level &&
-            (!currentCourseId.HasValue || x.Id != currentCourseId.Value));
+        var levelSettings = await CourseLevelCatalogDefaults.EnsureDefaultsAsync(_dbContext, schoolId);
+        var selectedTrack = await _dbContext.CourseLevelSettings
+            .FirstOrDefaultAsync(x =>
+                x.SchoolId == schoolId &&
+                x.Id == request.TrackTemplateId);
 
-        if (duplicateLevel)
+        if (selectedTrack is null)
         {
-            return Conflict("Ja existe um curso cadastrado para esse nivel.");
+            return BadRequest("Selecione uma trilha pedagógica válida.");
+        }
+
+        if (!selectedTrack.IsActive)
+        {
+            return BadRequest("Selecione uma trilha pedagógica ativa.");
+        }
+
+        if (selectedTrack.LevelValue != (int)request.Level)
+        {
+            return BadRequest("A trilha pedagógica precisa pertencer ao mesmo nível do curso.");
+        }
+
+        if (!levelSettings.Any(x => x.LevelValue == (int)request.Level && x.IsActive))
+        {
+            return BadRequest("Selecione um nível de curso ativo na trilha pedagógica.");
         }
 
         return null;
@@ -147,37 +184,18 @@ public sealed class CoursesController : ControllerBase
     private static int ToMinutes(decimal totalHours)
         => (int)Math.Round(totalHours * 60m, MidpointRounding.AwayFromZero);
 
-    private static object[] BuildPedagogicalTrack(string level, int totalMinutes)
-    {
-        var totalHours = Math.Max(1, (int)Math.Ceiling(totalMinutes / 60m));
-        var modules = new[]
-        {
-            new { title = "Base técnica", weight = 0.25m, focus = "Segurança, vento e montagem" },
-            new { title = "Controle do kite", weight = 0.25m, focus = "Janela de vento e controle de potência" },
-            new { title = "Prancha e navegação", weight = 0.30m, focus = "Saída d'água, bordos e retorno" },
-            new { title = "Autonomia", weight = 0.20m, focus = "Leitura de condição e rotina independente" }
-        };
-
-        return modules.Select((module, index) => new
-        {
-            id = $"{level}-{index + 1}",
-            module.title,
-            module.focus,
-            estimatedHours = Math.Max(1, (int)Math.Round(totalHours * module.weight, MidpointRounding.AwayFromZero))
-        }).ToArray<object>();
-    }
-
     public interface UpsertCourseContract
     {
         string Name { get; }
         CourseLevel Level { get; }
+        Guid TrackTemplateId { get; }
         decimal TotalHours { get; }
         decimal Price { get; }
     }
 
-    public sealed record UpsertCourseRequest(string Name, CourseLevel Level, decimal TotalHours, decimal Price)
+    public sealed record UpsertCourseRequest(string Name, CourseLevel Level, Guid TrackTemplateId, decimal TotalHours, decimal Price)
         : UpsertCourseContract;
 
-    public sealed record UpdateCourseRequest(string Name, CourseLevel Level, decimal TotalHours, decimal Price, bool IsActive)
+    public sealed record UpdateCourseRequest(string Name, CourseLevel Level, Guid TrackTemplateId, decimal TotalHours, decimal Price, bool IsActive)
         : UpsertCourseContract;
 }

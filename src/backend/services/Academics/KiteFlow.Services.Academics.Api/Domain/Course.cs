@@ -8,6 +8,8 @@ public sealed class Course : TenantScopedEntity
 
     public CourseLevel Level { get; set; }
 
+    public Guid? CourseLevelSettingId { get; set; }
+
     public int TotalMinutes { get; set; }
 
     public decimal Price { get; set; }

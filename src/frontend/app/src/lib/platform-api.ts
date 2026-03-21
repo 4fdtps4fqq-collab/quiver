@@ -213,6 +213,9 @@ export type Course = {
   id: string;
   name: string;
   level: string;
+  levelValue?: number;
+  trackTemplateId?: string;
+  trackTemplateName?: string;
   totalMinutes: number;
   totalHours: number;
   price: number;
@@ -223,6 +226,29 @@ export type Course = {
     focus: string;
     estimatedHours: number;
   }>;
+};
+
+export type CourseLevelSetting = {
+  id: string;
+  levelValue: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  pedagogicalTrack: Array<{
+    id: string;
+    title: string;
+    focus: string;
+    weightPercent: number;
+  }>;
+};
+
+export type CourseLevelCatalogResponse = {
+  availableLevels: Array<{
+    levelValue: number;
+    name: string;
+    sortOrder: number;
+  }>;
+  items: CourseLevelSetting[];
 };
 
 export type Enrollment = {
@@ -1112,9 +1138,40 @@ export function getCourses(token: string) {
   return apiRequest<Course[]>("/academics/api/v1/courses", { token });
 }
 
+export function getCourseLevelSettings(token: string) {
+  return apiRequest<CourseLevelCatalogResponse>("/academics/api/v1/course-level-settings", { token });
+}
+
+export function upsertCourseLevelSetting(token: string, body: {
+  id?: string;
+  levelValue: number;
+  name: string;
+  isActive: boolean;
+  pedagogicalTrack: Array<{
+    id?: string;
+    title: string;
+    focus?: string;
+    weightPercent: number;
+  }>;
+}) {
+  return apiRequest<{ settingId: string; updatedAtUtc: string }>("/academics/api/v1/course-level-settings", {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function deleteCourseLevelSetting(token: string, settingId: string) {
+  return apiRequest<{ deleted: boolean; settingId: string }>(`/academics/api/v1/course-level-settings/${settingId}`, {
+    method: "DELETE",
+    token
+  });
+}
+
 export function createCourse(token: string, body: {
   name: string;
   level: number;
+  trackTemplateId: string;
   totalHours: number;
   price: number;
 }) {
@@ -1128,6 +1185,7 @@ export function createCourse(token: string, body: {
 export function updateCourse(token: string, courseId: string, body: {
   name: string;
   level: number;
+  trackTemplateId: string;
   totalHours: number;
   price: number;
   isActive: boolean;

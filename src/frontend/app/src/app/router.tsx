@@ -14,6 +14,7 @@ import { EquipmentPage } from "../pages/EquipmentPage";
 import { MaintenancePage } from "../pages/MaintenancePage";
 import { FinancePage } from "../pages/FinancePage";
 import { SchoolSettingsPage } from "../pages/SchoolSettingsPage";
+import { SchoolCourseCatalogPage } from "../pages/SchoolCourseCatalogPage";
 import { SchoolCollaboratorsPage } from "../pages/SchoolCollaboratorsPage";
 import { SchoolInstructorSchedulePage } from "../pages/SchoolInstructorSchedulePage";
 import { SchoolInvitationsPage } from "../pages/SchoolInvitationsPage";
@@ -161,6 +162,17 @@ export function AppRouter() {
               requiredPermissions={[platformPermissions.schoolManage]}
             >
               <SchoolSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/school/course-catalog"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Owner", "Admin", "Instructor"]}
+              requiredPermissions={[platformPermissions.schoolManage]}
+            >
+              <SchoolCourseCatalogPage />
             </ProtectedRoute>
           }
         />

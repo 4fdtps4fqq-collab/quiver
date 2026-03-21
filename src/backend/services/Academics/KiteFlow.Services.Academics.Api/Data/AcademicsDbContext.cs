@@ -16,6 +16,8 @@ public sealed class AcademicsDbContext : DbContext
 
     public DbSet<Course> Courses => Set<Course>();
 
+    public DbSet<CourseLevelSetting> CourseLevelSettings => Set<CourseLevelSetting>();
+
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
 
     public DbSet<EnrollmentBalanceLedgerEntry> EnrollmentBalanceLedger => Set<EnrollmentBalanceLedgerEntry>();
@@ -75,11 +77,26 @@ public sealed class AcademicsDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Level).IsRequired();
+            entity.Property(x => x.CourseLevelSettingId);
             entity.Property(x => x.TotalMinutes).IsRequired();
             entity.Property(x => x.Price).HasPrecision(12, 2).IsRequired();
             entity.Property(x => x.IsActive).IsRequired();
             entity.Property(x => x.CreatedAtUtc).IsRequired();
-            entity.HasIndex(x => new { x.SchoolId, x.Level }).IsUnique();
+            entity.HasIndex(x => new { x.SchoolId, x.Level });
+            entity.HasIndex(x => new { x.SchoolId, x.CourseLevelSettingId });
+        });
+
+        modelBuilder.Entity<CourseLevelSetting>(entity =>
+        {
+            entity.ToTable("course_level_settings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.LevelValue).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.IsActive).IsRequired();
+            entity.Property(x => x.SortOrder).IsRequired();
+            entity.Property(x => x.PedagogicalTrackJson).HasMaxLength(8000).IsRequired();
+            entity.HasIndex(x => new { x.SchoolId, x.LevelValue });
+            entity.HasIndex(x => new { x.SchoolId, x.SortOrder });
         });
 
         modelBuilder.Entity<Enrollment>(entity =>

@@ -3,18 +3,20 @@ import { useSession } from "../auth/SessionContext";
 import { PageHero } from "../components/PageHero";
 import { ErrorBlock, GlassCard, LoadingBlock, StatusBadge } from "../components/OperationsUi";
 import { formatCurrency, formatMinutes } from "../lib/formatters";
-import { createCourse, getCourses, type Course, updateCourse } from "../lib/platform-api";
+import {
+  createCourse,
+  getCourseLevelSettings,
+  getCourses,
+  type Course,
+  type CourseLevelSetting,
+  updateCourse
+} from "../lib/platform-api";
 import { formatCurrencyInput, formatCurrencyMask, parseCurrencyInput } from "./school-admin-shared";
-
-const levelOptions = [
-  { value: 2, label: "Iniciante" },
-  { value: 3, label: "Intermediário" },
-  { value: 4, label: "Avançado" }
-];
 
 const initialForm = {
   name: "",
   level: "2",
+  trackTemplateId: "",
   totalHours: "6",
   price: ""
 };
@@ -22,6 +24,7 @@ const initialForm = {
 export function CoursesPage() {
   const { token } = useSession();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [levelSettings, setLevelSettings] = useState<CourseLevelSetting[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [form, setForm] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +44,12 @@ export function CoursesPage() {
     try {
       setIsLoading(true);
       setError(null);
-      setCourses(await getCourses(currentToken));
+      const [coursesData, settingsResponse] = await Promise.all([
+        getCourses(currentToken),
+        getCourseLevelSettings(currentToken)
+      ]);
+      setCourses(coursesData);
+      setLevelSettings(settingsResponse.items.filter((item) => item.isActive).sort((left, right) => left.sortOrder - right.sortOrder));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Não foi possível carregar os cursos.");
     } finally {
@@ -55,7 +63,7 @@ export function CoursesPage() {
       return;
     }
 
-    const current = courses.find((item) => item.id === selectedCourseId);
+      const current = courses.find((item) => item.id === selectedCourseId);
     if (!current) {
       setForm(initialForm);
       return;
@@ -63,11 +71,34 @@ export function CoursesPage() {
 
     setForm({
       name: current.name,
-      level: String(mapLevelLabelToValue(current.level)),
+      level: String(current.levelValue ?? mapLevelLabelToValue(current.level)),
+      trackTemplateId: current.trackTemplateId ?? "",
       totalHours: String(current.totalHours),
       price: formatCurrencyInput(current.price)
     });
   }, [courses, selectedCourseId]);
+
+  useEffect(() => {
+    if (levelSettings.length === 0) {
+      return;
+    }
+
+    setForm((current) => {
+      const availableTracks = levelSettings.filter((item) => item.levelValue === Number(current.level) && item.isActive);
+      if (availableTracks.length === 0) {
+        return { ...current, trackTemplateId: "" };
+      }
+
+      if (availableTracks.some((item) => item.id === current.trackTemplateId)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        trackTemplateId: availableTracks[0].id
+      };
+    });
+  }, [form.level, levelSettings]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,6 +114,7 @@ export function CoursesPage() {
         await updateCourse(token, selectedCourseId, {
           name: form.name,
           level: Number(form.level),
+          trackTemplateId: form.trackTemplateId,
           totalHours: Number(form.totalHours),
           price: parseCurrencyInput(form.price),
           isActive: true
@@ -93,6 +125,7 @@ export function CoursesPage() {
         await createCourse(token, {
           name: form.name,
           level: Number(form.level),
+          trackTemplateId: form.trackTemplateId,
           totalHours: Number(form.totalHours),
           price: parseCurrencyInput(form.price)
         });
@@ -121,6 +154,7 @@ export function CoursesPage() {
       await updateCourse(token, selectedCourse.id, {
         name: selectedCourse.name,
         level: mapLevelLabelToValue(selectedCourse.level),
+        trackTemplateId: selectedCourse.trackTemplateId ?? form.trackTemplateId,
         totalHours: selectedCourse.totalHours,
         price: selectedCourse.price,
         isActive: false
@@ -137,6 +171,16 @@ export function CoursesPage() {
   }
 
   const activeCourses = courses.filter((item) => item.isActive);
+  const courseLevelOptions = levelSettings.length > 0
+    ? Array.from(
+        new Map(levelSettings.map((item) => [item.levelValue, { value: item.levelValue, label: translateCourseLevel(item.levelValue) }])).values()
+      )
+    : [
+        { value: 2, label: "Iniciante" },
+        { value: 3, label: "Intermediário" },
+        { value: 4, label: "Avançado" }
+      ];
+  const trackTemplateOptions = levelSettings.filter((item) => item.levelValue === Number(form.level) && item.isActive);
   const averagePrice =
     courses.length === 0 ? 0 : courses.reduce((sum, item) => sum + item.price, 0) / courses.length;
   const totalCapacityMinutes = courses.reduce((sum, item) => sum + item.totalMinutes, 0);
@@ -180,9 +224,24 @@ export function CoursesPage() {
                 value={form.level}
                 onChange={(event) => setForm((current) => ({ ...current, level: event.target.value }))}
               >
-                {levelOptions.map((option) => (
+                {courseLevelOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm text-[var(--q-text)]">
+              <span>Trilha pedagógica</span>
+              <select
+                className="rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)] outline-none"
+                value={form.trackTemplateId}
+                onChange={(event) => setForm((current) => ({ ...current, trackTemplateId: event.target.value }))}
+                required
+              >
+                {trackTemplateOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
                   </option>
                 ))}
               </select>
@@ -217,6 +276,18 @@ export function CoursesPage() {
               >
                 {isSaving ? "Salvando" : "Salvar"}
               </button>
+              <button
+                className="rounded-full border border-[var(--q-border)] bg-[var(--q-surface)] px-5 py-3 text-sm font-medium uppercase tracking-[0.24em] text-[var(--q-text)] transition hover:bg-[var(--q-surface-2)]"
+                type="button"
+                onClick={() => {
+                  setForm(initialForm);
+                  setSelectedCourseId("");
+                  setError(null);
+                  setNotice(null);
+                }}
+              >
+                Limpar
+              </button>
               {selectedCourse ? (
                 <>
                   <button
@@ -240,6 +311,7 @@ export function CoursesPage() {
                 <tr>
                   <th className="pb-3">Curso</th>
                   <th className="pb-3">Nível</th>
+                  <th className="pb-3">Trilha</th>
                   <th className="pb-3">Carga horária</th>
                   <th className="pb-3">Preço</th>
                   <th className="pb-3">Status</th>
@@ -253,7 +325,8 @@ export function CoursesPage() {
                     onClick={() => setSelectedCourseId(course.id)}
                   >
                     <td className="py-3 font-medium text-[var(--q-text)]">{course.name}</td>
-                    <td className="py-3">{translateCourseLevel(course.level)}</td>
+                    <td className="py-3">{course.level}</td>
+                    <td className="py-3">{course.trackTemplateName ?? "Trilha padrão"}</td>
                     <td className="py-3">{formatMinutes(course.totalMinutes)}</td>
                     <td className="py-3">{formatCurrency(course.price)}</td>
                     <td className="py-3">
@@ -296,18 +369,16 @@ export function CoursesPage() {
   );
 }
 
-function translateCourseLevel(level: string) {
+function translateCourseLevel(level: number) {
   switch (level) {
-    case "Discovery":
-      return "Descoberta";
-    case "Beginner":
+    case 2:
       return "Iniciante";
-    case "Intermediate":
+    case 3:
       return "Intermediário";
-    case "Advanced":
+    case 4:
       return "Avançado";
     default:
-      return level;
+      return `Nível ${level}`;
   }
 }
 

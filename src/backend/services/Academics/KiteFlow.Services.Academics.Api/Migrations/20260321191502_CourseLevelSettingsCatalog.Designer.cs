@@ -3,6 +3,7 @@ using System;
 using KiteFlow.Services.Academics.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KiteFlow.Services.Academics.Api.Migrations
 {
     [DbContext(typeof(AcademicsDbContext))]
-    partial class AcademicsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321191502_CourseLevelSettingsCatalog")]
+    partial class CourseLevelSettingsCatalog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,9 +29,6 @@ namespace KiteFlow.Services.Academics.Api.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CourseLevelSettingId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -57,9 +57,8 @@ namespace KiteFlow.Services.Academics.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SchoolId", "CourseLevelSettingId");
-
-                    b.HasIndex("SchoolId", "Level");
+                    b.HasIndex("SchoolId", "Level")
+                        .IsUnique();
 
                     b.ToTable("courses", (string)null);
                 });
@@ -97,7 +96,8 @@ namespace KiteFlow.Services.Academics.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SchoolId", "LevelValue");
+                    b.HasIndex("SchoolId", "LevelValue")
+                        .IsUnique();
 
                     b.HasIndex("SchoolId", "SortOrder");
 

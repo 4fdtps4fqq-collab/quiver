@@ -3,6 +3,7 @@ using System;
 using KiteFlow.Services.Academics.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KiteFlow.Services.Academics.Api.Migrations
 {
     [DbContext(typeof(AcademicsDbContext))]
-    partial class AcademicsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321195519_CourseTrackTemplatesByLevel")]
+    partial class CourseTrackTemplatesByLevel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

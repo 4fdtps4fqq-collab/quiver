@@ -35,6 +35,7 @@ export const navigationItems: NavigationItem[] = [
   { to: "/maintenance", label: "Manutenção", section: "Operação", icon: Wrench, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.maintenanceManage] },
   { to: "/finance", label: "Financeiro", section: "Financeiro", icon: CircleDollarSign, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.financeManage] },
   { to: "/school", label: "Escola", section: "Administração", icon: School, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
+  { to: "/school/course-catalog", label: "Níveis de curso", section: "Administração", icon: BookOpen, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
   { to: "/school/collaborators", label: "Colaboradores", section: "Administração", icon: Users, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
   { to: "/school/instructors/schedule", label: "Agenda dos instrutores", section: "Administração", icon: CalendarRange, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
   { to: "/school/invitations", label: "Convites", section: "Administração", icon: Mail, roles: ["Owner", "Admin", "Instructor"], requiredPermissions: [platformPermissions.schoolManage] },
