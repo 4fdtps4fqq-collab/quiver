@@ -120,7 +120,7 @@ public sealed class ReceivablesController : ControllerBase
                 x.LastPaymentAtUtc,
                 x.ReconciledAtUtc,
                 x.ReconciliationNote,
-                status = x.Status.ToString(),
+                x.Status,
                 isOverdue = x.Status != ReceivableStatus.Paid &&
                             x.Status != ReceivableStatus.Cancelled &&
                             x.Amount > x.PaidAmount &&
@@ -148,7 +148,7 @@ public sealed class ReceivablesController : ControllerBase
             x.LastPaymentAtUtc,
             x.ReconciledAtUtc,
             x.ReconciliationNote,
-            x.status,
+            status = x.Status.ToString(),
             x.isOverdue,
             paymentsCount = paymentCounts.TryGetValue(x.Id, out var count) ? count : 0,
             x.CreatedAtUtc

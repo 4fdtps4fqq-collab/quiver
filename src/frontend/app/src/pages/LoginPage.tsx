@@ -9,21 +9,6 @@ import {
 } from "../lib/auth-api";
 import { resolveHomePath } from "../lib/home-path";
 import { translateLabel } from "../lib/localization";
-import { ApiRequestError, getApiBaseUrl } from "../lib/api";
-
-type LoginDiagnosticEntry = {
-  title: string;
-  occurredAtUtc: string;
-  appUrl: string;
-  apiBaseUrl: string;
-  mode: "login" | "invite" | "forgot" | "reset";
-  method?: string;
-  path?: string;
-  requestUrl?: string;
-  status?: number;
-  message: string;
-  responseText?: string;
-};
 
 export function LoginPage() {
   const { login, acceptInvite, previewInvite, isLoading } = useSession();
@@ -41,7 +26,6 @@ export function LoginPage() {
   const [inviteLoading, setInviteLoading] = useState(Boolean(inviteToken));
   const [showPassword, setShowPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [diagnostics, setDiagnostics] = useState<LoginDiagnosticEntry[]>([]);
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: ""
@@ -109,7 +93,6 @@ export function LoginPage() {
       const session = await login(loginForm);
       navigate(resolveHomePath(session));
     } catch (cause) {
-      pushDiagnostic("Falha no login", cause, "login");
       setError("Não foi possível entrar com este e-mail e senha. Confira os dados e tente novamente.");
     } finally {
       setSubmitting(false);
@@ -137,7 +120,6 @@ export function LoginPage() {
       });
       navigate(resolveHomePath(session));
     } catch (cause) {
-      pushDiagnostic("Falha ao aceitar convite", cause, "invite");
       setError(cause instanceof Error ? cause.message : "Não foi possível aceitar o convite.");
     } finally {
       setSubmitting(false);
@@ -152,7 +134,6 @@ export function LoginPage() {
       const response = await forgotPasswordRequest({ email: forgotEmail });
       setNotice(response.message);
     } catch (cause) {
-      pushDiagnostic("Falha na recuperação de senha", cause, "forgot");
       setError(cause instanceof Error ? cause.message : "Não foi possível iniciar a recuperação de senha.");
     } finally {
       setSubmitting(false);
@@ -184,44 +165,11 @@ export function LoginPage() {
       });
       navigate(resolveHomePath(user));
     } catch (cause) {
-      pushDiagnostic("Falha na redefinição de senha", cause, "reset");
       setError(cause instanceof Error ? cause.message : "Não foi possível redefinir a senha.");
     } finally {
       setSubmitting(false);
     }
   };
-
-  function pushDiagnostic(
-    title: string,
-    cause: unknown,
-    entryMode: "login" | "invite" | "forgot" | "reset"
-  ) {
-    const nextEntry: LoginDiagnosticEntry =
-      cause instanceof ApiRequestError
-        ? {
-            title,
-            occurredAtUtc: cause.occurredAtUtc,
-            appUrl: window.location.origin,
-            apiBaseUrl: getApiBaseUrl(),
-            mode: entryMode,
-            method: cause.method,
-            path: cause.path,
-            requestUrl: cause.requestUrl,
-            status: cause.status,
-            message: cause.message,
-            responseText: cause.responseText
-          }
-        : {
-            title,
-            occurredAtUtc: new Date().toISOString(),
-            appUrl: window.location.origin,
-            apiBaseUrl: getApiBaseUrl(),
-            mode: entryMode,
-            message: cause instanceof Error ? cause.message : "Erro não identificado na tela de login."
-          };
-
-    setDiagnostics((current) => [nextEntry, ...current].slice(0, 5));
-  }
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] px-4 py-6 text-[var(--q-text)] sm:px-6 sm:py-10">
@@ -484,39 +432,6 @@ export function LoginPage() {
                   <div className="mt-4 rounded-2xl border border-[var(--q-info)]/30 bg-[var(--q-info-bg)] px-4 py-3 text-sm text-[var(--q-info)]">
                     {notice}
                   </div>
-                ) : null}
-                {diagnostics.length > 0 ? (
-                  <details className="mt-4 rounded-2xl border border-[var(--q-border)] bg-[var(--q-surface-2)] px-4 py-3 text-sm text-[var(--q-text)]">
-                    <summary className="cursor-pointer font-medium text-[var(--q-text)]">
-                      Log de diagnóstico do login
-                    </summary>
-                    <div className="mt-3 space-y-3">
-                      {diagnostics.map((entry, index) => (
-                        <div
-                          key={`${entry.occurredAtUtc}-${index}`}
-                          className="rounded-xl border border-[var(--q-border)] bg-white/70 px-3 py-3"
-                        >
-                          <div className="text-sm font-semibold text-[var(--q-text)]">{entry.title}</div>
-                          <div className="mt-2 grid gap-1 text-xs text-[var(--q-text-2)]">
-                            <div>Quando: {new Date(entry.occurredAtUtc).toLocaleString("pt-BR")}</div>
-                            <div>Modo: {entry.mode}</div>
-                            <div>App: {entry.appUrl}</div>
-                            <div>API base: {entry.apiBaseUrl}</div>
-                            {entry.method ? <div>Método: {entry.method}</div> : null}
-                            {entry.path ? <div>Path: {entry.path}</div> : null}
-                            {entry.requestUrl ? <div>URL: {entry.requestUrl}</div> : null}
-                            {typeof entry.status === "number" ? <div>Status HTTP: {entry.status}</div> : null}
-                            <div>Mensagem: {entry.message}</div>
-                            {entry.responseText ? (
-                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
-                                Resposta bruta: {entry.responseText}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
                 ) : null}
               </div>
             </section>

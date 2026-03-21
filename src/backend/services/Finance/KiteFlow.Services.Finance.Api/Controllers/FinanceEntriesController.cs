@@ -74,8 +74,7 @@ public sealed class FinanceEntriesController : ControllerBase
             .Select(x => new
             {
                 x.Id,
-                sourceType = x.SourceType.ToString(),
-                sourceTypeCode = (int)x.SourceType,
+                x.SourceType,
                 sourceId = x.SourceId == Guid.Empty ? (Guid?)null : x.SourceId,
                 x.CategoryId,
                 x.Category,
@@ -90,7 +89,23 @@ public sealed class FinanceEntriesController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(items);
+        return Ok(items.Select(x => new
+        {
+            x.Id,
+            sourceType = x.SourceType.ToString(),
+            sourceTypeCode = (int)x.SourceType,
+            x.sourceId,
+            x.CategoryId,
+            x.Category,
+            x.CostCenterId,
+            x.CostCenterName,
+            x.Amount,
+            x.Description,
+            x.RecognizedAtUtc,
+            x.ReconciledAtUtc,
+            x.ReconciliationNote,
+            x.CreatedAtUtc
+        }));
     }
 
     [HttpPost("revenues")]
@@ -247,8 +262,7 @@ public sealed class FinanceEntriesController : ControllerBase
             .Select(x => new
             {
                 x.Id,
-                category = x.Category.ToString(),
-                categoryCode = (int)x.Category,
+                x.Category,
                 x.CategoryId,
                 categoryName = x.CategoryName,
                 x.CostCenterId,
@@ -263,7 +277,23 @@ public sealed class FinanceEntriesController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(items);
+        return Ok(items.Select(x => new
+        {
+            x.Id,
+            category = x.Category.ToString(),
+            categoryCode = (int)x.Category,
+            x.CategoryId,
+            x.categoryName,
+            x.CostCenterId,
+            x.CostCenterName,
+            x.Amount,
+            x.Description,
+            x.Vendor,
+            x.OccurredAtUtc,
+            x.ReconciledAtUtc,
+            x.ReconciliationNote,
+            x.CreatedAtUtc
+        }));
     }
 
     [HttpPost("expenses")]
@@ -708,7 +738,8 @@ public sealed class FinanceEntriesController : ControllerBase
             .Select(x => new
             {
                 x.Description,
-                Category = x.CategoryName ?? x.Category.ToString(),
+                x.CategoryName,
+                x.Category,
                 x.CostCenterName,
                 x.Vendor,
                 x.Amount,
@@ -721,7 +752,8 @@ public sealed class FinanceEntriesController : ControllerBase
         builder.AppendLine("Descricao,Categoria,CentroDeCusto,Fornecedor,Valor,OcorridaEm,ConciliadaEm");
         foreach (var item in items)
         {
-            builder.AppendLine($"{EscapeCsv(item.Description)},{EscapeCsv(item.Category)},{EscapeCsv(item.CostCenterName)},{EscapeCsv(item.Vendor)},{item.Amount:0.00},{item.OccurredAtUtc:O},{item.ReconciledAtUtc:O}");
+            var category = item.CategoryName ?? item.Category.ToString();
+            builder.AppendLine($"{EscapeCsv(item.Description)},{EscapeCsv(category)},{EscapeCsv(item.CostCenterName)},{EscapeCsv(item.Vendor)},{item.Amount:0.00},{item.OccurredAtUtc:O},{item.ReconciledAtUtc:O}");
         }
 
         return builder.ToString();
@@ -752,7 +784,7 @@ public sealed class FinanceEntriesController : ControllerBase
                 x.PaidAmount,
                 x.DueAtUtc,
                 x.ReconciledAtUtc,
-                Status = x.Status.ToString()
+                x.Status
             })
             .ToListAsync();
 
@@ -761,7 +793,7 @@ public sealed class FinanceEntriesController : ControllerBase
         foreach (var item in items)
         {
             builder.AppendLine(
-                $"{EscapeCsv(item.StudentNameSnapshot)},{EscapeCsv(item.Description)},{EscapeCsv(item.Category)},{EscapeCsv(item.CostCenterName)},{item.Amount:0.00},{item.PaidAmount:0.00},{item.DueAtUtc:O},{EscapeCsv(item.Status)},{item.ReconciledAtUtc:O}");
+                $"{EscapeCsv(item.StudentNameSnapshot)},{EscapeCsv(item.Description)},{EscapeCsv(item.Category)},{EscapeCsv(item.CostCenterName)},{item.Amount:0.00},{item.PaidAmount:0.00},{item.DueAtUtc:O},{EscapeCsv(item.Status.ToString())},{item.ReconciledAtUtc:O}");
         }
 
         return builder.ToString();
@@ -792,7 +824,7 @@ public sealed class FinanceEntriesController : ControllerBase
                 x.PaidAmount,
                 x.DueAtUtc,
                 x.ReconciledAtUtc,
-                Status = x.Status.ToString()
+                x.Status
             })
             .ToListAsync();
 
@@ -801,7 +833,7 @@ public sealed class FinanceEntriesController : ControllerBase
         foreach (var item in items)
         {
             builder.AppendLine(
-                $"{EscapeCsv(item.Description)},{EscapeCsv(item.Vendor)},{EscapeCsv(item.Category)},{EscapeCsv(item.CostCenterName)},{item.Amount:0.00},{item.PaidAmount:0.00},{item.DueAtUtc:O},{EscapeCsv(item.Status)},{item.ReconciledAtUtc:O}");
+                $"{EscapeCsv(item.Description)},{EscapeCsv(item.Vendor)},{EscapeCsv(item.Category)},{EscapeCsv(item.CostCenterName)},{item.Amount:0.00},{item.PaidAmount:0.00},{item.DueAtUtc:O},{EscapeCsv(item.Status.ToString())},{item.ReconciledAtUtc:O}");
         }
 
         return builder.ToString();

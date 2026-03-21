@@ -41,14 +41,21 @@ public sealed class FinanceCatalogController : ControllerBase
             {
                 x.Id,
                 x.Name,
-                direction = x.Direction.ToString(),
-                directionCode = (int)x.Direction,
+                x.Direction,
                 x.IsActive,
                 x.SortOrder
             })
             .ToListAsync();
 
-        return Ok(items);
+        return Ok(items.Select(x => new
+        {
+            x.Id,
+            x.Name,
+            direction = x.Direction.ToString(),
+            directionCode = (int)x.Direction,
+            x.IsActive,
+            x.SortOrder
+        }));
     }
 
     [HttpPost("categories")]

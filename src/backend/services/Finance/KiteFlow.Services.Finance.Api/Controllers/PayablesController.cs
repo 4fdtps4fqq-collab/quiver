@@ -94,7 +94,7 @@ public sealed class PayablesController : ControllerBase
                 remainingAmount = x.Amount - x.PaidAmount,
                 x.DueAtUtc,
                 x.LastPaymentAtUtc,
-                status = x.Status.ToString(),
+                x.Status,
                 isOverdue = x.Status != PayableStatus.Paid &&
                             x.Status != PayableStatus.Cancelled &&
                             x.Amount > x.PaidAmount &&
@@ -120,7 +120,7 @@ public sealed class PayablesController : ControllerBase
             x.remainingAmount,
             x.DueAtUtc,
             x.LastPaymentAtUtc,
-            x.status,
+            status = x.Status.ToString(),
             x.isOverdue,
             paymentsCount = paymentCounts.TryGetValue(x.Id, out var count) ? count : 0,
             x.ReconciledAtUtc,

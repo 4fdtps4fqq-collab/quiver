@@ -94,12 +94,21 @@ public sealed class FinanceOverviewController : ControllerBase
             .GroupBy(x => x.SourceType)
             .Select(group => new
             {
-                sourceType = group.Key.ToString(),
+                sourceType = group.Key,
                 totalAmount = group.Sum(x => x.Amount),
                 entries = group.Count()
             })
             .OrderByDescending(x => x.totalAmount)
             .ToListAsync();
+
+        var revenueBySourceItems = revenueBySource
+            .Select(x => new
+            {
+                sourceType = x.sourceType.ToString(),
+                x.totalAmount,
+                x.entries
+            })
+            .ToList();
 
         var revenueByCategory = await revenueQuery
             .GroupBy(x => x.Category)
@@ -113,22 +122,36 @@ public sealed class FinanceOverviewController : ControllerBase
             .ToListAsync();
 
         var expenseByCategory = await expenseQuery
-            .GroupBy(x => x.CategoryName ?? x.Category.ToString())
+            .GroupBy(x => new
+            {
+                x.CategoryName,
+                x.Category
+            })
             .Select(group => new
             {
-                category = group.Key,
+                group.Key.CategoryName,
+                group.Key.Category,
                 totalAmount = group.Sum(x => x.Amount),
                 entries = group.Count()
             })
             .OrderByDescending(x => x.totalAmount)
             .ToListAsync();
 
+        var expenseByCategoryItems = expenseByCategory
+            .Select(x => new
+            {
+                category = x.CategoryName ?? x.Category.ToString(),
+                x.totalAmount,
+                x.entries
+            })
+            .ToList();
+
         if (academicsFinancials.InstructorPayrollExpense > 0)
         {
-            var payrollCategory = expenseByCategory.FirstOrDefault(x => x.category == "Folha" || x.category == "Payroll");
+            var payrollCategory = expenseByCategoryItems.FirstOrDefault(x => x.category == "Folha" || x.category == "Payroll");
             if (payrollCategory is null)
             {
-                expenseByCategory.Add(new
+                expenseByCategoryItems.Add(new
                 {
                     category = "Folha",
                     totalAmount = academicsFinancials.InstructorPayrollExpense,
@@ -137,8 +160,8 @@ public sealed class FinanceOverviewController : ControllerBase
             }
             else
             {
-                expenseByCategory.Remove(payrollCategory);
-                expenseByCategory.Add(new
+                expenseByCategoryItems.Remove(payrollCategory);
+                expenseByCategoryItems.Add(new
                 {
                     category = payrollCategory.category,
                     totalAmount = payrollCategory.totalAmount + academicsFinancials.InstructorPayrollExpense,
@@ -147,7 +170,7 @@ public sealed class FinanceOverviewController : ControllerBase
             }
         }
 
-        expenseByCategory = expenseByCategory.OrderByDescending(x => x.totalAmount).ToList();
+        expenseByCategoryItems = expenseByCategoryItems.OrderByDescending(x => x.totalAmount).ToList();
 
         var receivables = await receivableQuery
             .Select(x => new
@@ -302,9 +325,9 @@ public sealed class FinanceOverviewController : ControllerBase
             unreconciledReceivableAmount = openReceivables.Sum(x => x.Amount - x.PaidAmount) - reconciledReceivableAmount,
             reconciledPayableAmount,
             unreconciledPayableAmount = openPayables.Sum(x => x.Amount - x.PaidAmount) - reconciledPayableAmount,
-            revenueBySource,
+            revenueBySource = revenueBySourceItems,
             revenueByCategory,
-            expenseByCategory,
+            expenseByCategory = expenseByCategoryItems,
             costCenterMargins,
             cashflowSeries,
             marginByCourse = academicsFinancials.ByCourse,
