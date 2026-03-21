@@ -41,6 +41,38 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return payload as T;
 }
 
+export async function apiDownload(path: string, token: string): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+  } catch (cause) {
+    const message =
+      cause instanceof Error && cause.message.toLowerCase().includes("failed to fetch")
+        ? "Não foi possível concluir a comunicação com a plataforma agora. Tente novamente em instantes."
+        : "Não foi possível concluir a comunicação com a plataforma.";
+
+    throw new Error(message);
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    const payload = text ? safeJsonParse(text) : null;
+    const message =
+      extractMessage(payload) ??
+      (typeof payload === "string" ? payload : null) ??
+      `A requisição falhou com status ${response.status}.`;
+
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);

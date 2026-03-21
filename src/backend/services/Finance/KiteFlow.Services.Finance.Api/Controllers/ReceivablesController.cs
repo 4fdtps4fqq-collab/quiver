@@ -34,6 +34,9 @@ public sealed class ReceivablesController : ControllerBase
         [FromQuery] DateTime? fromDueUtc,
         [FromQuery] DateTime? toDueUtc,
         [FromQuery] Guid? studentId,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] Guid? costCenterId,
+        [FromQuery] bool? reconciled,
         [FromQuery] bool includeSettled = true)
     {
         _currentTenant.EnsureTenant();
@@ -59,6 +62,23 @@ public sealed class ReceivablesController : ControllerBase
         if (studentId.HasValue)
         {
             query = query.Where(x => x.StudentId == studentId.Value);
+        }
+
+        if (categoryId.HasValue)
+        {
+            query = query.Where(x => x.CategoryId == categoryId.Value);
+        }
+
+        if (costCenterId.HasValue)
+        {
+            query = query.Where(x => x.CostCenterId == costCenterId.Value);
+        }
+
+        if (reconciled.HasValue)
+        {
+            query = reconciled.Value
+                ? query.Where(x => x.ReconciledAtUtc != null)
+                : query.Where(x => x.ReconciledAtUtc == null);
         }
 
         if (!includeSettled)
@@ -89,11 +109,17 @@ public sealed class ReceivablesController : ControllerBase
                 x.StudentNameSnapshot,
                 x.Description,
                 x.Notes,
+                x.CategoryId,
+                x.CategoryName,
+                x.CostCenterId,
+                x.CostCenterName,
                 x.Amount,
                 x.PaidAmount,
                 remainingAmount = x.Amount - x.PaidAmount,
                 x.DueAtUtc,
                 x.LastPaymentAtUtc,
+                x.ReconciledAtUtc,
+                x.ReconciliationNote,
                 status = x.Status.ToString(),
                 isOverdue = x.Status != ReceivableStatus.Paid &&
                             x.Status != ReceivableStatus.Cancelled &&
@@ -111,11 +137,17 @@ public sealed class ReceivablesController : ControllerBase
             x.StudentNameSnapshot,
             x.Description,
             x.Notes,
+            x.CategoryId,
+            x.CategoryName,
+            x.CostCenterId,
+            x.CostCenterName,
             x.Amount,
             x.PaidAmount,
             x.remainingAmount,
             x.DueAtUtc,
             x.LastPaymentAtUtc,
+            x.ReconciledAtUtc,
+            x.ReconciliationNote,
             x.status,
             x.isOverdue,
             paymentsCount = paymentCounts.TryGetValue(x.Id, out var count) ? count : 0,
@@ -135,6 +167,9 @@ public sealed class ReceivablesController : ControllerBase
             return error;
         }
 
+        var category = await ResolveCategoryAsync(schoolId, request.CategoryId);
+        var costCenter = await ResolveCostCenterAsync(schoolId, request.CostCenterId);
+
         var entry = new AccountsReceivableEntry
         {
             SchoolId = schoolId,
@@ -143,6 +178,10 @@ public sealed class ReceivablesController : ControllerBase
             StudentNameSnapshot = request.StudentNameSnapshot.Trim(),
             Description = request.Description.Trim(),
             Notes = NormalizeNullable(request.Notes),
+            CategoryId = category?.Id,
+            CategoryName = category?.Name ?? NormalizeNullable(request.CategoryName),
+            CostCenterId = costCenter?.Id,
+            CostCenterName = costCenter?.Name,
             Amount = request.Amount,
             PaidAmount = 0m,
             DueAtUtc = request.DueAtUtc,
@@ -173,11 +212,18 @@ public sealed class ReceivablesController : ControllerBase
             return NotFound();
         }
 
+        var category = await ResolveCategoryAsync(schoolId, request.CategoryId);
+        var costCenter = await ResolveCostCenterAsync(schoolId, request.CostCenterId);
+
         entry.StudentId = request.StudentId;
         entry.EnrollmentId = request.EnrollmentId;
         entry.StudentNameSnapshot = request.StudentNameSnapshot.Trim();
         entry.Description = request.Description.Trim();
         entry.Notes = NormalizeNullable(request.Notes);
+        entry.CategoryId = category?.Id;
+        entry.CategoryName = category?.Name ?? NormalizeNullable(request.CategoryName);
+        entry.CostCenterId = costCenter?.Id;
+        entry.CostCenterName = costCenter?.Name;
         entry.Amount = request.Amount;
         entry.DueAtUtc = request.DueAtUtc;
         ApplyReceivableStatus(entry, entry.Status == ReceivableStatus.Cancelled);
@@ -234,7 +280,10 @@ public sealed class ReceivablesController : ControllerBase
             SchoolId = schoolId,
             SourceType = RevenueSourceType.ManualAdjustment,
             SourceId = entry.Id,
-            Category = "Recebimento",
+            CategoryId = entry.CategoryId,
+            Category = entry.CategoryName ?? "Recebimento",
+            CostCenterId = entry.CostCenterId,
+            CostCenterName = entry.CostCenterName,
             Amount = request.Amount,
             RecognizedAtUtc = request.PaidAtUtc,
             Description = $"Recebimento de {entry.StudentNameSnapshot}: {entry.Description}"
@@ -387,6 +436,32 @@ public sealed class ReceivablesController : ControllerBase
         return null;
     }
 
+    private async Task<FinancialCategory?> ResolveCategoryAsync(Guid schoolId, Guid? categoryId)
+    {
+        if (!categoryId.HasValue)
+        {
+            return null;
+        }
+
+        return await _dbContext.FinancialCategories.FirstOrDefaultAsync(x =>
+            x.Id == categoryId.Value &&
+            x.SchoolId == schoolId &&
+            x.IsActive);
+    }
+
+    private async Task<CostCenter?> ResolveCostCenterAsync(Guid schoolId, Guid? costCenterId)
+    {
+        if (!costCenterId.HasValue)
+        {
+            return null;
+        }
+
+        return await _dbContext.CostCenters.FirstOrDefaultAsync(x =>
+            x.Id == costCenterId.Value &&
+            x.SchoolId == schoolId &&
+            x.IsActive);
+    }
+
     private static void ApplyReceivableStatus(AccountsReceivableEntry entry, bool cancelled)
     {
         if (cancelled)
@@ -432,6 +507,9 @@ public sealed class ReceivablesController : ControllerBase
         Guid StudentId,
         string StudentNameSnapshot,
         Guid? EnrollmentId,
+        Guid? CategoryId,
+        string? CategoryName,
+        Guid? CostCenterId,
         decimal Amount,
         DateTime DueAtUtc,
         string Description,

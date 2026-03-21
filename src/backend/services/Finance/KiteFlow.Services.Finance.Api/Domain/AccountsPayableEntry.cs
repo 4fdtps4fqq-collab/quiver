@@ -2,17 +2,17 @@ using KiteFlow.BuildingBlocks.MultiTenancy;
 
 namespace KiteFlow.Services.Finance.Api.Domain;
 
-public sealed class AccountsReceivableEntry : TenantScopedEntity
+public sealed class AccountsPayableEntry : TenantScopedEntity
 {
-    public Guid StudentId { get; set; }
-
-    public Guid? EnrollmentId { get; set; }
-
-    public string StudentNameSnapshot { get; set; } = string.Empty;
-
     public string Description { get; set; } = string.Empty;
 
     public string? Notes { get; set; }
+
+    public string? Vendor { get; set; }
+
+    public string? SourceType { get; set; }
+
+    public Guid? SourceId { get; set; }
 
     public Guid? CategoryId { get; set; }
 
@@ -30,7 +30,7 @@ public sealed class AccountsReceivableEntry : TenantScopedEntity
 
     public DateTime? LastPaymentAtUtc { get; set; }
 
-    public ReceivableStatus Status { get; set; } = ReceivableStatus.Open;
+    public PayableStatus Status { get; set; } = PayableStatus.Open;
 
     public DateTime? ReconciledAtUtc { get; set; }
 

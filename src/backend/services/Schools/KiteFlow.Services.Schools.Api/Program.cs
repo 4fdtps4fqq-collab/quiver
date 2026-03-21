@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureKiteFlowLogging();
 builder.Services.AddControllers();
+builder.Services.AddKiteFlowWebInfrastructure();
 builder.Services.AddKiteFlowPlatformAuthentication(builder.Configuration);
 builder.Services.AddKiteFlowSwagger("KiteFlow Schools Service");
 builder.Services.AddDbContext<SchoolsDbContext>(options =>

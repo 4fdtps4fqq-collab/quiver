@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiDownload, apiRequest } from "./api";
 
 export type SystemSchoolSummary = {
   id: string;
@@ -770,10 +770,34 @@ export type RevenueBreakdown = {
   entries: number;
 };
 
+export type RevenueCategoryBreakdown = {
+  category: string;
+  totalAmount: number;
+  entries: number;
+};
+
 export type ExpenseBreakdown = {
   category: string;
   totalAmount: number;
   entries: number;
+};
+
+export type CostCenterMargin = {
+  costCenterName: string;
+  revenue: number;
+  expense: number;
+  grossMargin: number;
+};
+
+export type MarginSummaryItem = {
+  id?: string;
+  name: string;
+  recognizedRevenue: number;
+  deliveredRevenue: number;
+  payrollExpense: number;
+  grossMargin: number;
+  realizedLessons: number;
+  realizedMinutes: number;
 };
 
 export type FinanceOverview = {
@@ -788,12 +812,50 @@ export type FinanceOverview = {
   receivablesOpenAmount: number;
   receivablesOverdueAmount: number;
   receivablesOpenEntries: number;
+  payablesOpenAmount: number;
+  payablesOverdueAmount: number;
+  payablesOpenEntries: number;
   delinquentStudents: number;
   dueSoonStudents: number;
   revenueEntries: number;
   expenseEntries: number;
+  reconciledRevenueAmount: number;
+  unreconciledRevenueAmount: number;
+  reconciledExpenseAmount: number;
+  unreconciledExpenseAmount: number;
+  reconciledReceivableAmount: number;
+  unreconciledReceivableAmount: number;
+  reconciledPayableAmount: number;
+  unreconciledPayableAmount: number;
   revenueBySource: RevenueBreakdown[];
+  revenueByCategory: RevenueCategoryBreakdown[];
   expenseByCategory: ExpenseBreakdown[];
+  costCenterMargins: CostCenterMargin[];
+  cashflowSeries: Array<{
+    bucketStartUtc: string;
+    bucketLabel: string;
+    revenue: number;
+    expense: number;
+    net: number;
+  }>;
+  marginByCourse: MarginSummaryItem[];
+  marginByInstructor: MarginSummaryItem[];
+};
+
+export type FinancialCategory = {
+  id: string;
+  name: string;
+  direction: string;
+  directionCode: number;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export type CostCenter = {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
 };
 
 export type StudentFinancialStatusSummary = {
@@ -820,11 +882,39 @@ export type ReceivableEntry = {
   studentNameSnapshot: string;
   description: string;
   notes?: string;
+  categoryId?: string;
+  categoryName?: string;
+  costCenterId?: string;
+  costCenterName?: string;
   amount: number;
   paidAmount: number;
   remainingAmount: number;
   dueAtUtc: string;
   lastPaymentAtUtc?: string;
+  reconciledAtUtc?: string;
+  reconciliationNote?: string;
+  status: string;
+  isOverdue: boolean;
+  paymentsCount: number;
+  createdAtUtc: string;
+};
+
+export type PayableEntry = {
+  id: string;
+  description: string;
+  notes?: string;
+  vendor?: string;
+  categoryId?: string;
+  categoryName?: string;
+  costCenterId?: string;
+  costCenterName?: string;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueAtUtc: string;
+  lastPaymentAtUtc?: string;
+  reconciledAtUtc?: string;
+  reconciliationNote?: string;
   status: string;
   isOverdue: boolean;
   paymentsCount: number;
@@ -836,9 +926,14 @@ export type RevenueEntry = {
   sourceType: string;
   sourceTypeCode: number;
   sourceId?: string;
+  categoryId?: string;
   category: string;
+  costCenterId?: string;
+  costCenterName?: string;
   amount: number;
   recognizedAtUtc: string;
+  reconciledAtUtc?: string;
+  reconciliationNote?: string;
   description: string;
   createdAtUtc: string;
 };
@@ -847,10 +942,16 @@ export type ExpenseEntry = {
   id: string;
   category: string;
   categoryCode: number;
+  categoryId?: string;
+  categoryName?: string;
+  costCenterId?: string;
+  costCenterName?: string;
   amount: number;
   occurredAtUtc: string;
   description: string;
   vendor?: string;
+  reconciledAtUtc?: string;
+  reconciliationNote?: string;
   createdAtUtc: string;
 };
 
@@ -1419,8 +1520,46 @@ export function getFinancialReport(token: string) {
   return apiRequest<FinancialReport>("/reporting/api/v1/reports/financial", { token });
 }
 
-export function getFinanceOverview(token: string, filters?: { fromUtc?: string; toUtc?: string }) {
+export function getFinanceOverview(
+  token: string,
+  filters?: { fromUtc?: string; toUtc?: string; categoryId?: string; costCenterId?: string }
+) {
   return apiRequest<FinanceOverview>(withQuery("/finance/api/v1/finance/overview", filters), { token });
+}
+
+export function getFinancialCategories(token: string, filters?: { directionCode?: string }) {
+  return apiRequest<FinancialCategory[]>(withQuery("/finance/api/v1/finance/categories", filters), { token });
+}
+
+export function upsertFinancialCategory(token: string, body: {
+  id?: string | null;
+  name: string;
+  direction: number;
+  isActive: boolean;
+  sortOrder: number;
+}) {
+  return apiRequest<{ categoryId: string }>("/finance/api/v1/finance/categories", {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function getCostCenters(token: string) {
+  return apiRequest<CostCenter[]>("/finance/api/v1/finance/cost-centers", { token });
+}
+
+export function upsertCostCenter(token: string, body: {
+  id?: string | null;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}) {
+  return apiRequest<{ costCenterId: string }>("/finance/api/v1/finance/cost-centers", {
+    method: "POST",
+    token,
+    body
+  });
 }
 
 export function getStudentFinancialStatuses(token: string) {
@@ -1429,7 +1568,15 @@ export function getStudentFinancialStatuses(token: string) {
 
 export function getReceivableEntries(
   token: string,
-  filters?: { fromDueUtc?: string; toDueUtc?: string; studentId?: string; includeSettled?: boolean }
+  filters?: {
+    fromDueUtc?: string;
+    toDueUtc?: string;
+    studentId?: string;
+    categoryId?: string;
+    costCenterId?: string;
+    reconciled?: string;
+    includeSettled?: boolean;
+  }
 ) {
   return apiRequest<ReceivableEntry[]>(withQuery("/finance/api/v1/finance/receivables", filters), { token });
 }
@@ -1438,6 +1585,9 @@ export function createReceivableEntry(token: string, body: {
   studentId: string;
   studentNameSnapshot: string;
   enrollmentId?: string | null;
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
   amount: number;
   dueAtUtc: string;
   description: string;
@@ -1454,6 +1604,9 @@ export function updateReceivableEntry(token: string, receivableId: string, body:
   studentId: string;
   studentNameSnapshot: string;
   enrollmentId?: string | null;
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
   amount: number;
   dueAtUtc: string;
   description: string;
@@ -1491,14 +1644,92 @@ export function deleteReceivableEntry(token: string, receivableId: string) {
   });
 }
 
-export function getRevenueEntries(token: string, filters?: { fromUtc?: string; toUtc?: string }) {
+export function getPayableEntries(
+  token: string,
+  filters?: {
+    fromDueUtc?: string;
+    toDueUtc?: string;
+    categoryId?: string;
+    costCenterId?: string;
+    reconciled?: string;
+    includeSettled?: boolean;
+  }
+) {
+  return apiRequest<PayableEntry[]>(withQuery("/finance/api/v1/finance/payables", filters), { token });
+}
+
+export function createPayableEntry(token: string, body: {
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
+  amount: number;
+  dueAtUtc: string;
+  description: string;
+  notes?: string;
+  vendor?: string;
+}) {
+  return apiRequest<{ payableId: string }>("/finance/api/v1/finance/payables", {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function updatePayableEntry(token: string, payableId: string, body: {
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
+  amount: number;
+  dueAtUtc: string;
+  description: string;
+  notes?: string;
+  vendor?: string;
+}) {
+  return apiRequest<void>(`/finance/api/v1/finance/payables/${payableId}`, {
+    method: "PUT",
+    token,
+    body
+  });
+}
+
+export function registerPayablePayment(token: string, payableId: string, body: {
+  amount: number;
+  paidAtUtc: string;
+  note?: string;
+}) {
+  return apiRequest<{
+    paymentId: string;
+    payableId: string;
+    paidAmount: number;
+    remainingAmount: number;
+    status: string;
+  }>(`/finance/api/v1/finance/payables/${payableId}/payments`, {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function deletePayableEntry(token: string, payableId: string) {
+  return apiRequest<void>(`/finance/api/v1/finance/payables/${payableId}`, {
+    method: "DELETE",
+    token
+  });
+}
+
+export function getRevenueEntries(
+  token: string,
+  filters?: { fromUtc?: string; toUtc?: string; categoryId?: string; costCenterId?: string; reconciled?: string }
+) {
   return apiRequest<RevenueEntry[]>(withQuery("/finance/api/v1/finance/revenues", filters), { token });
 }
 
 export function createRevenueEntry(token: string, body: {
   sourceType: number;
   sourceId?: string | null;
+  categoryId?: string | null;
   category: string;
+  costCenterId?: string | null;
   amount: number;
   recognizedAtUtc: string;
   description: string;
@@ -1513,7 +1744,9 @@ export function createRevenueEntry(token: string, body: {
 export function updateRevenueEntry(token: string, revenueId: string, body: {
   sourceType: number;
   sourceId?: string | null;
+  categoryId?: string | null;
   category: string;
+  costCenterId?: string | null;
   amount: number;
   recognizedAtUtc: string;
   description: string;
@@ -1532,12 +1765,18 @@ export function deleteRevenueEntry(token: string, revenueId: string) {
   });
 }
 
-export function getExpenseEntries(token: string, filters?: { fromUtc?: string; toUtc?: string }) {
+export function getExpenseEntries(
+  token: string,
+  filters?: { fromUtc?: string; toUtc?: string; categoryId?: string; costCenterId?: string; reconciled?: string }
+) {
   return apiRequest<ExpenseEntry[]>(withQuery("/finance/api/v1/finance/expenses", filters), { token });
 }
 
 export function createExpenseEntry(token: string, body: {
   category: number;
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
   amount: number;
   occurredAtUtc: string;
   description: string;
@@ -1552,6 +1791,9 @@ export function createExpenseEntry(token: string, body: {
 
 export function updateExpenseEntry(token: string, expenseId: string, body: {
   category: number;
+  categoryId?: string | null;
+  categoryName?: string;
+  costCenterId?: string | null;
   amount: number;
   occurredAtUtc: string;
   description: string;
@@ -1569,6 +1811,28 @@ export function deleteExpenseEntry(token: string, expenseId: string) {
     method: "DELETE",
     token
   });
+}
+
+export function reconcileFinancialEntry(token: string, kind: "revenue" | "expense" | "receivable" | "payable", entryId: string, body?: {
+  note?: string;
+  reconciledAtUtc?: string;
+}) {
+  return apiRequest<{ reconciled: boolean; reconciledAtUtc: string }>(`/finance/api/v1/finance/reconciliation/${kind}/${entryId}`, {
+    method: "POST",
+    token,
+    body
+  });
+}
+
+export function unreconcileFinancialEntry(token: string, kind: "revenue" | "expense" | "receivable" | "payable", entryId: string) {
+  return apiRequest<void>(`/finance/api/v1/finance/reconciliation/${kind}/${entryId}`, {
+    method: "DELETE",
+    token
+  });
+}
+
+export function downloadFinanceExport(token: string, kind: "revenues" | "expenses" | "receivables" | "payables", filters?: { fromUtc?: string; toUtc?: string }) {
+  return apiDownload(withQuery(`/finance/api/v1/finance/exports/${kind}`, filters), token);
 }
 
 export function getSchoolUsers(token: string) {
@@ -1662,15 +1926,15 @@ export function resetSchoolUserPassword(token: string, identityUserId: string, b
   );
 }
 
-function withQuery(path: string, filters?: Record<string, string | undefined>) {
+function withQuery(path: string, filters?: Record<string, string | number | boolean | undefined>) {
   if (!filters) {
     return path;
   }
 
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
-    if (value) {
-      query.set(key, value);
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
     }
   }
 

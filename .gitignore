@@ -8,5 +8,8 @@ temp/dev-run/
 temp/*build-check/
 temp/smoke-run/
 temp/smoke-run-inline/
+publish/
+temp/
+src/backend/services/*/*/temp/
 
 src/backend/gateway/KiteFlow.Gateway/bin/Debug/net8.0/temp/

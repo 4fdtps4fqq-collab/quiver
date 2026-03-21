@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureKiteFlowLogging();
 builder.Services.AddControllers();
+builder.Services.AddKiteFlowWebInfrastructure();
 builder.Services.AddKiteFlowPlatformAuthentication(builder.Configuration);
 builder.Services.AddKiteFlowSwagger("KiteFlow Gateway");
 builder.Services.AddOptions<OwnerCredentialDeliveryOptions>()
@@ -25,26 +26,11 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
-builder.Services.AddHttpClient("identity", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Identity"]!);
-});
-builder.Services.AddHttpClient("schools", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Schools"]!);
-});
-builder.Services.AddHttpClient("academics", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Academics"]!);
-});
-builder.Services.AddHttpClient("equipment", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Equipment"]!);
-});
-builder.Services.AddHttpClient("finance", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Finance"]!);
-});
+builder.Services.AddKiteFlowDownstreamClient("identity", builder.Configuration, "DownstreamServices:Identity");
+builder.Services.AddKiteFlowDownstreamClient("schools", builder.Configuration, "DownstreamServices:Schools");
+builder.Services.AddKiteFlowDownstreamClient("academics", builder.Configuration, "DownstreamServices:Academics");
+builder.Services.AddKiteFlowDownstreamClient("equipment", builder.Configuration, "DownstreamServices:Equipment");
+builder.Services.AddKiteFlowDownstreamClient("finance", builder.Configuration, "DownstreamServices:Finance");
 builder.Services
     .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace KiteFlow.Services.Reporting.Api.Controllers;
 
@@ -12,10 +13,12 @@ namespace KiteFlow.Services.Reporting.Api.Controllers;
 public sealed class ReportsController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _memoryCache;
 
-    public ReportsController(IHttpClientFactory httpClientFactory)
+    public ReportsController(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache)
     {
         _httpClientFactory = httpClientFactory;
+        _memoryCache = memoryCache;
     }
 
     [HttpGet("dashboard")]
@@ -24,25 +27,32 @@ public sealed class ReportsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         CancellationToken cancellationToken)
     {
-        var queryString = BuildQueryString(fromUtc, toUtc);
-
-        var serviceErrors = new List<object>();
-        var academics = await GetJsonAsync("academics", $"/api/v1/academics/overview{queryString}", "academics", serviceErrors, cancellationToken);
-        var equipment = await GetJsonAsync("equipment", $"/api/v1/equipment/overview{queryString}", "equipment", serviceErrors, cancellationToken);
-        var maintenanceAlerts = await GetJsonAsync("equipment", "/api/v1/maintenance/alerts", "maintenance", serviceErrors, cancellationToken);
-        var finance = await GetJsonAsync("finance", $"/api/v1/finance/overview{queryString}", "finance", serviceErrors, cancellationToken);
-
-        return Ok(new
-        {
-            generatedAtUtc = DateTime.UtcNow,
+        return Ok(await GetOrCreateReportAsync(
+            reportName: "dashboard",
             fromUtc,
             toUtc,
-            academics,
-            equipment,
-            maintenanceAlerts,
-            finance,
-            serviceErrors
-        });
+            async ct =>
+            {
+                var queryString = BuildQueryString(fromUtc, toUtc);
+                var serviceErrors = new List<object>();
+                var academics = await GetJsonAsync("academics", $"/api/v1/academics/overview{queryString}", "academics", serviceErrors, ct);
+                var equipment = await GetJsonAsync("equipment", $"/api/v1/equipment/overview{queryString}", "equipment", serviceErrors, ct);
+                var maintenanceAlerts = await GetJsonAsync("equipment", "/api/v1/maintenance/alerts", "maintenance", serviceErrors, ct);
+                var finance = await GetJsonAsync("finance", $"/api/v1/finance/overview{queryString}", "finance", serviceErrors, ct);
+
+                return new
+                {
+                    generatedAtUtc = DateTime.UtcNow,
+                    fromUtc,
+                    toUtc,
+                    academics,
+                    equipment,
+                    maintenanceAlerts,
+                    finance,
+                    serviceErrors
+                };
+            },
+            cancellationToken));
     }
 
     [HttpGet("operations")]
@@ -51,20 +61,28 @@ public sealed class ReportsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         CancellationToken cancellationToken)
     {
-        var queryString = BuildQueryString(fromUtc, toUtc);
-        var serviceErrors = new List<object>();
-        var academics = await GetJsonAsync("academics", $"/api/v1/academics/overview{queryString}", "academics", serviceErrors, cancellationToken);
-        var equipment = await GetJsonAsync("equipment", $"/api/v1/equipment/overview{queryString}", "equipment", serviceErrors, cancellationToken);
-
-        return Ok(new
-        {
-            generatedAtUtc = DateTime.UtcNow,
+        return Ok(await GetOrCreateReportAsync(
+            reportName: "operations",
             fromUtc,
             toUtc,
-            academics,
-            equipment,
-            serviceErrors
-        });
+            async ct =>
+            {
+                var queryString = BuildQueryString(fromUtc, toUtc);
+                var serviceErrors = new List<object>();
+                var academics = await GetJsonAsync("academics", $"/api/v1/academics/overview{queryString}", "academics", serviceErrors, ct);
+                var equipment = await GetJsonAsync("equipment", $"/api/v1/equipment/overview{queryString}", "equipment", serviceErrors, ct);
+
+                return new
+                {
+                    generatedAtUtc = DateTime.UtcNow,
+                    fromUtc,
+                    toUtc,
+                    academics,
+                    equipment,
+                    serviceErrors
+                };
+            },
+            cancellationToken));
     }
 
     [HttpGet("financial")]
@@ -73,17 +91,45 @@ public sealed class ReportsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         CancellationToken cancellationToken)
     {
-        var queryString = BuildQueryString(fromUtc, toUtc);
-        var serviceErrors = new List<object>();
-        var finance = await GetJsonAsync("finance", $"/api/v1/finance/overview{queryString}", "finance", serviceErrors, cancellationToken);
-        return Ok(new
-        {
-            generatedAtUtc = DateTime.UtcNow,
+        return Ok(await GetOrCreateReportAsync(
+            reportName: "financial",
             fromUtc,
             toUtc,
-            finance,
-            serviceErrors
-        });
+            async ct =>
+            {
+                var queryString = BuildQueryString(fromUtc, toUtc);
+                var serviceErrors = new List<object>();
+                var finance = await GetJsonAsync("finance", $"/api/v1/finance/overview{queryString}", "finance", serviceErrors, ct);
+                return new
+                {
+                    generatedAtUtc = DateTime.UtcNow,
+                    fromUtc,
+                    toUtc,
+                    finance,
+                    serviceErrors
+                };
+            },
+            cancellationToken));
+    }
+
+    private async Task<object> GetOrCreateReportAsync(
+        string reportName,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        Func<CancellationToken, Task<object>> factory,
+        CancellationToken cancellationToken)
+    {
+        var schoolId = User.FindFirst("school_id")?.Value ?? "system";
+        var cacheKey = $"{reportName}:{schoolId}:{fromUtc:O}:{toUtc:O}";
+
+        if (_memoryCache.TryGetValue(cacheKey, out object? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var payload = await factory(cancellationToken);
+        _memoryCache.Set(cacheKey, payload, TimeSpan.FromSeconds(15));
+        return payload;
     }
 
     private async Task<JsonElement?> GetJsonAsync(

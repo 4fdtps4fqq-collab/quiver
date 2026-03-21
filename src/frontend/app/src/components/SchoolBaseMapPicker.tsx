@@ -95,9 +95,9 @@ export function SchoolBaseMapPicker({ value, onChange }: SchoolBaseMapPickerProp
       return;
     }
 
-    if (markerRef.current) {
-      map.removeLayer(markerRef.current);
-      markerRef.current = null;
+    if (map.__kiteflowMarker) {
+      map.removeLayer(map.__kiteflowMarker);
+      map.__kiteflowMarker = null;
     }
   }, [value.latitude, value.longitude]);
 

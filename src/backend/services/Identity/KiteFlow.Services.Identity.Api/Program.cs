@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureKiteFlowLogging();
 builder.Services.AddControllers();
+builder.Services.AddKiteFlowWebInfrastructure();
 builder.Services.AddKiteFlowPlatformAuthentication(builder.Configuration);
 builder.Services.AddKiteFlowSwagger("KiteFlow Identity Service");
 builder.Services
@@ -25,14 +26,7 @@ builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 builder.Services.AddScoped<IIdentityEmailDeliveryService, IdentityEmailDeliveryService>();
 builder.Services.AddScoped<AuthenticationAuditService>();
-builder.Services.AddHttpClient("schools", client =>
-{
-    var baseAddress = builder.Configuration["DownstreamServices:Schools"];
-    if (!string.IsNullOrWhiteSpace(baseAddress))
-    {
-        client.BaseAddress = new Uri(baseAddress);
-    }
-});
+builder.Services.AddKiteFlowDownstreamClient("schools", builder.Configuration, "DownstreamServices:Schools");
 
 var app = builder.Build();
 

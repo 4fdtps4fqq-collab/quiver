@@ -10,6 +10,7 @@ import {
   getEquipment,
   getEquipmentHistory,
   getEquipmentKits,
+  getStorages,
   type EquipmentHistory,
   type EquipmentItem,
   type EquipmentKit,

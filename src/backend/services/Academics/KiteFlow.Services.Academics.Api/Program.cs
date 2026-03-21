@@ -8,26 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureKiteFlowLogging();
 builder.Services.AddControllers();
+builder.Services.AddKiteFlowWebInfrastructure();
 builder.Services.AddKiteFlowPlatformAuthentication(builder.Configuration);
 builder.Services.AddKiteFlowSwagger("KiteFlow Academics Service");
 builder.Services.AddDbContext<AcademicsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
-builder.Services.AddHttpClient("schools", client =>
-{
-    var baseAddress = builder.Configuration["DownstreamServices:Schools"];
-    if (!string.IsNullOrWhiteSpace(baseAddress))
-    {
-        client.BaseAddress = new Uri(baseAddress);
-    }
-});
-builder.Services.AddHttpClient("finance", client =>
-{
-    var baseAddress = builder.Configuration["DownstreamServices:Finance"];
-    if (!string.IsNullOrWhiteSpace(baseAddress))
-    {
-        client.BaseAddress = new Uri(baseAddress);
-    }
-});
+builder.Services.AddKiteFlowDownstreamClient("schools", builder.Configuration, "DownstreamServices:Schools");
+builder.Services.AddKiteFlowDownstreamClient("finance", builder.Configuration, "DownstreamServices:Finance");
 builder.Services.AddScoped<KiteFlow.Services.Academics.Api.Services.SchoolOperationsSettingsClient>();
 builder.Services.AddScoped<KiteFlow.Services.Academics.Api.Services.LessonSchedulingService>();
 builder.Services.AddScoped<KiteFlow.Services.Academics.Api.Services.FinancialAutomationService>();

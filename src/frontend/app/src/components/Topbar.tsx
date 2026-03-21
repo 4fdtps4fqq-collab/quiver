@@ -5,6 +5,7 @@ import { navigationItems } from "../lib/navigation";
 import { translateLabel } from "../lib/localization";
 
 type RouteHeaderMeta = {
+  section: string;
   title: string;
   description: string;
 };
@@ -13,6 +14,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/system/schools",
     meta: {
+      section: "Administração",
       title: "Escolas da plataforma",
       description: "Provisione novas escolas e acompanhe a base ativa do sistema."
     }
@@ -20,6 +22,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/dashboard",
     meta: {
+      section: "Visão geral",
       title: "Painel operacional",
       description: "Acompanhe os indicadores principais da escola em um único lugar."
     }
@@ -27,6 +30,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/students",
     meta: {
+      section: "Acadêmico",
       title: "Alunos",
       description: "Gerencie alunos, contatos e vínculo com o portal da escola."
     }
@@ -34,6 +38,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/courses",
     meta: {
+      section: "Acadêmico",
       title: "Cursos",
       description: "Configure programas por carga horária e valor comercial."
     }
@@ -41,6 +46,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/enrollments",
     meta: {
+      section: "Acadêmico",
       title: "Matrículas",
       description: "Acompanhe saldo em horas, snapshots e ciclo de vida das matrículas."
     }
@@ -48,6 +54,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/lessons",
     meta: {
+      section: "Acadêmico",
       title: "Agenda",
       description: "Visualize aulas, remarcações e execução da rotina da escola."
     }
@@ -55,6 +62,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/equipment",
     meta: {
+      section: "Operação",
       title: "Equipamentos",
       description: "Controle estoque, condição atual e uso acumulado dos ativos."
     }
@@ -62,6 +70,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/maintenance",
     meta: {
+      section: "Operação",
       title: "Manutenção",
       description: "Gerencie alertas, regras preventivas e histórico de serviços."
     }
@@ -69,6 +78,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/finance",
     meta: {
+      section: "Financeiro",
       title: "Financeiro",
       description: "Monitore receitas, despesas e leitura de margem da escola."
     }
@@ -76,6 +86,7 @@ const routeMeta: Array<{ match: string; meta: RouteHeaderMeta }> = [
   {
     match: "/school",
     meta: {
+      section: "Administração",
       title: "Administração da escola",
       description: "Ajuste equipe, permissões, identidade visual e regras operacionais da escola."
     }
@@ -138,7 +149,7 @@ function resolveHeaderMeta(pathname: string, schoolName: string): RouteHeaderMet
   const matched = routeMeta.find((item) => pathname.startsWith(item.match));
   if (matched) {
     return {
-      section: navigationMatch?.section ?? "Operação",
+      section: matched.meta.section || navigationMatch?.section || "Operação",
       title: matched.meta.title,
       description: matched.meta.description
     };

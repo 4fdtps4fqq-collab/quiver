@@ -18,13 +18,14 @@ export function StudentPortalHistoryPage() {
       return;
     }
 
+    const currentToken = token;
     let cancelled = false;
 
     async function load() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getStudentPortalHistory(token);
+        const data = await getStudentPortalHistory(currentToken);
         if (!cancelled) {
           setPayload(data);
         }

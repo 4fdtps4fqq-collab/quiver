@@ -55,6 +55,7 @@ export function LoginPage() {
     }
 
     setMode("invite");
+    const currentInviteToken = inviteToken;
 
     let cancelled = false;
 
@@ -62,7 +63,7 @@ export function LoginPage() {
       try {
         setInviteLoading(true);
         setError(null);
-        const preview = await previewInvite(inviteToken);
+        const preview = await previewInvite(currentInviteToken);
         if (!cancelled) {
           setInvitePreview(preview);
         }

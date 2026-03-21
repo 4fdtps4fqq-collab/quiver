@@ -8,16 +8,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureKiteFlowLogging();
 builder.Services.AddControllers();
+builder.Services.AddKiteFlowWebInfrastructure();
 builder.Services.AddKiteFlowPlatformAuthentication(builder.Configuration);
 builder.Services.AddKiteFlowSwagger("KiteFlow Equipment Service");
-builder.Services.AddHttpClient("academics", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Academics"]!);
-});
-builder.Services.AddHttpClient("finance", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["DownstreamServices:Finance"]!);
-});
+builder.Services.AddKiteFlowDownstreamClient("academics", builder.Configuration, "DownstreamServices:Academics");
+builder.Services.AddKiteFlowDownstreamClient("finance", builder.Configuration, "DownstreamServices:Finance");
 builder.Services.AddDbContext<EquipmentDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 
