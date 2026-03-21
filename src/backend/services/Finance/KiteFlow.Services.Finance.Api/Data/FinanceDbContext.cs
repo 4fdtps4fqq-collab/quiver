@@ -63,7 +63,9 @@ public sealed class FinanceDbContext : DbContext
             entity.Property(x => x.ReconciliationNote).HasMaxLength(500);
             entity.Property(x => x.CreatedAtUtc).IsRequired();
             entity.HasIndex(x => new { x.SchoolId, x.RecognizedAtUtc });
-            entity.HasIndex(x => new { x.SchoolId, x.SourceType, x.SourceId });
+            entity.HasIndex(x => new { x.SchoolId, x.SourceType, x.SourceId })
+                .IsUnique()
+                .HasFilter("\"SourceId\" <> '00000000-0000-0000-0000-000000000000'");
         });
 
         modelBuilder.Entity<AccountsReceivableEntry>(entity =>

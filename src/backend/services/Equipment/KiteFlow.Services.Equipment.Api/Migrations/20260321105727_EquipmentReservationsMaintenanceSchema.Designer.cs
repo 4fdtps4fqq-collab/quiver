@@ -3,6 +3,7 @@ using System;
 using KiteFlow.Services.Equipment.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KiteFlow.Services.Equipment.Api.Migrations
 {
     [DbContext(typeof(EquipmentDbContext))]
-    partial class EquipmentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321105727_EquipmentReservationsMaintenanceSchema")]
+    partial class EquipmentReservationsMaintenanceSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

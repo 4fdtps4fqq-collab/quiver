@@ -68,6 +68,7 @@ export function DashboardPage() {
   const academics = report?.academics;
   const equipment = report?.equipment;
   const maintenanceAlerts = report?.maintenanceAlerts ?? [];
+  const alerts = report?.alerts ?? [];
   const serviceErrors = report?.serviceErrors ?? [];
 
   const marginTone = (finance?.grossMargin ?? 0) >= 0 ? "cyan" : "amber";
@@ -84,7 +85,7 @@ export function DashboardPage() {
           { label: "Período inicial", value: formatDateTime(report?.fromUtc ?? fromLocalDateTimeInput(filters.fromUtc) ?? undefined) },
           { label: "Período final", value: formatDateTime(report?.toUtc ?? fromLocalDateTimeInput(filters.toUtc) ?? undefined) },
           { label: "Gerado em", value: formatDateTime(report?.generatedAtUtc) },
-          { label: "Alertas", value: String(maintenanceAlerts.length) }
+          { label: "Alertas", value: String(alerts.length) }
         ]}
       />
 
@@ -293,35 +294,27 @@ export function DashboardPage() {
             </GlassCard>
 
             <GlassCard
-              title="Alertas e prioridades"
-              description="Itens mais próximos de impactar a operação se não houver ação preventiva."
+              title="Alertas operacionais e financeiros"
+              description="Prioridades consolidadas do caixa, agenda e manutenção para orientar a próxima ação da equipe."
             >
               <div className="space-y-3">
-                {maintenanceAlerts.length === 0 ? (
+                {alerts.length === 0 ? (
                   <div className="rounded-[22px] border border-dashed border-[var(--q-divider)] px-4 py-5 text-sm text-[var(--q-text-2)]">
-                    Nenhum alerta preventivo próximo do vencimento.
+                    Nenhum alerta crítico ou preventivo ativo para o período.
                   </div>
                 ) : (
-                  maintenanceAlerts.slice(0, 6).map((alert) => (
-                    <div key={`${alert.id}-${alert.alertType}`} className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
+                  alerts.slice(0, 6).map((alert) => (
+                    <div key={alert.id} className="rounded-[22px] border border-[var(--q-border)] bg-[var(--q-surface-2)] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <div className="text-sm font-medium text-[var(--q-text)]">{alert.name}</div>
+                          <div className="text-sm font-medium text-[var(--q-text)]">{alert.title}</div>
                           <div className="mt-1 text-xs uppercase tracking-[0.24em] text-[var(--q-muted)]">
-                            {alert.type}
+                            {formatAlertScope(alert.scope)}
                           </div>
                         </div>
-                        <StatusBadge value={alert.alertType} />
+                        <StatusBadge value={alert.severity} />
                       </div>
-                      <div className="mt-3 text-sm text-[var(--q-text-2)]">
-                        {typeof alert.remainingMinutes === "number"
-                          ? `Serviço em ${formatMinutes(alert.remainingMinutes)} de uso restante.`
-                          : null}
-                        {typeof alert.remainingDays === "number"
-                          ? ` Faltam ${alert.remainingDays} dias para a próxima janela preventiva.`
-                          : null}
-                        {alert.condition ? ` Condição atual: ${translateLabel(alert.condition)}.` : null}
-                      </div>
+                      <div className="mt-3 text-sm text-[var(--q-text-2)]">{alert.message}</div>
                     </div>
                   ))
                 )}
@@ -490,4 +483,19 @@ function Bar({
   const height = Math.max(10, Math.round((Math.abs(value) / highestValue) * 120));
 
   return <div className={`w-5 rounded-t-full ${tone}`} style={{ height }} title={String(value)} />;
+}
+
+function formatAlertScope(scope: string) {
+  switch (scope) {
+    case "finance":
+      return "Financeiro";
+    case "operations":
+      return "Operação";
+    case "equipment":
+      return "Equipamentos";
+    case "maintenance":
+      return "Manutenção";
+    default:
+      return scope;
+  }
 }

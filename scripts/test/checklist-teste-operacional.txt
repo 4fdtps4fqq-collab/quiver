@@ -1,5 +1,5 @@
 CHECKLIST OPERACIONAL DE TESTE - KITEFLOW / QUIVER
-Versao: 1.0
+Versao: 1.1
 Data: 21/03/2026
 
 INSTRUCOES
@@ -22,6 +22,12 @@ CHECKLIST 1 - ACESSO E SESSAO
 [ ] Sessao expira corretamente por inatividade
 [ ] Troca obrigatoria de senha funciona no primeiro acesso
 [ ] Recuperacao de senha envia e-mail corretamente
+
+CHECKLIST 0 - FUNDACAO
+[ ] Servicos sobem com boot limpo
+[ ] Schema e criado por migrations formais
+[ ] Sem DDL residual em startup
+[ ] Dashboard reutiliza snapshots/read models sem erro
 
 CHECKLIST 2 - MULTI-TENANT
 [ ] Escola A nao enxerga dados da Escola B

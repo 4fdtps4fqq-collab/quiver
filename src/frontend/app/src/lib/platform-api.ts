@@ -730,6 +730,13 @@ export type DashboardReport = {
     }>;
   };
   maintenanceAlerts?: MaintenanceAlert[];
+  alerts?: Array<{
+    id: string;
+    scope: string;
+    severity: string;
+    title: string;
+    message: string;
+  }>;
   finance?: {
     fromUtc?: string;
     toUtc?: string;
@@ -755,6 +762,13 @@ export type DashboardReport = {
 
 export type FinancialReport = {
   generatedAtUtc: string;
+  alerts?: Array<{
+    id: string;
+    scope: string;
+    severity: string;
+    title: string;
+    message: string;
+  }>;
   finance?: {
     totalRevenue: number;
     totalExpense: number;

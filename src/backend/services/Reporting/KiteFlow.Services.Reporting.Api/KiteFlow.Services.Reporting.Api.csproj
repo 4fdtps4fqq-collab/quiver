@@ -4,6 +4,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <ProjectReference Include="..\\..\\..\\building-blocks\\KiteFlow.BuildingBlocks\\KiteFlow.BuildingBlocks.csproj" />
   </ItemGroup>
 </Project>

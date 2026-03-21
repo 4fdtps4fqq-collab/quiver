@@ -1,6 +1,6 @@
 PLANO DE TESTE COMPLETO - KITEFLOW / QUIVER
-Versao: 1.0
-Data: 20/03/2026
+Versao: 1.1
+Data: 21/03/2026
 
 OBJETIVO
 Validar funcionalidade, seguranca, isolamento multi-tenant, integridade de dados, experiencia operacional e publicacao do sistema Quiver/KiteFlow.
@@ -8,6 +8,7 @@ Validar funcionalidade, seguranca, isolamento multi-tenant, integridade de dados
 ESCOPO
 - Identidade e autenticacao
 - Multi-tenancy por escola
+- Fundacao arquitetural e evolucao de schema
 - Administracao do sistema
 - Administracao da escola
 - Alunos
@@ -52,6 +53,38 @@ CRITERIOS GERAIS DE APROVACAO
 - Fluxos com senha temporaria devem exigir troca de senha no primeiro acesso
 - Erros devem ser tratados com mensagem clara sem stack trace para o usuario
 - Sistema deve funcionar em localhost e no dominio publicado
+- Servicos devem subir com boot limpo usando migrations formais, sem DDL residual em startup
+
+BLOCO 0 - FUNDACAO ARQUITETURAL E SCHEMA
+Caso 0.1 - Boot limpo com migrations
+Passos:
+- Reiniciar os servicos a partir de banco existente
+- Observar logs de inicializacao
+Esperado:
+- Servicos sobem executando apenas migracoes e bootstrap legitimo
+- Sem comandos de alteracao de schema fora das migrations
+
+Caso 0.2 - Base nova com aplicacao de schema
+Passos:
+- Subir ambiente em banco vazio
+- Validar criacao das estruturas de cada servico
+Esperado:
+- Schema criado por migrations formais
+- Sem necessidade de SQL manual em startup
+
+Caso 0.3 - Ausencia de DDL residual em startup
+Passos:
+- Revisar logs e comportamento ao subir Identity, Schools, Academics, Equipment, Finance e Reporting
+Esperado:
+- Sem alteracoes ad-hoc de colunas, tabelas ou indices fora das migrations
+
+Caso 0.4 - Reporting com read model proprio
+Passos:
+- Acessar dashboards apos reinicio
+- Repetir consultas no mesmo tenant/periodo
+Esperado:
+- Snapshots/read models reutilizados corretamente
+- Sem fan-out desnecessario a cada refresh
 
 BLOCO 1 - IDENTIDADE E AUTENTICACAO
 Caso 1.1 - Login valido
@@ -541,21 +574,22 @@ Esperado:
 
 BLOCO 13 - SMOKE REGRESSION FINAL
 Executar ao final de cada release:
-1. Login SystemAdmin
-2. Login Owner
-3. Login Administrativo
-4. Login Aluno
-5. Criacao de escola
-6. Criacao de colaborador
-7. Criacao de aluno
-8. Emissao de acesso ao portal
-9. Criacao de curso
-10. Criacao de matricula
-11. Criacao de aula
-12. Reserva de equipamento
-13. Lancamento financeiro
-14. Validacao de dashboard
-15. Validacao de isolamento entre duas escolas
+1. Boot dos servicos com migrations formais
+2. Login SystemAdmin
+3. Login Owner
+4. Login Administrativo
+5. Login Aluno
+6. Criacao de escola
+7. Criacao de colaborador
+8. Criacao de aluno
+9. Emissao de acesso ao portal
+10. Criacao de curso
+11. Criacao de matricula
+12. Criacao de aula
+13. Reserva de equipamento
+14. Lancamento financeiro
+15. Validacao de dashboard
+16. Validacao de isolamento entre duas escolas
 
 REGISTRO DE EVIDENCIAS
 Para cada execucao registrar:

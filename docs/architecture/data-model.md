@@ -279,13 +279,20 @@ Uso inicial:
 
 ## Reporting
 
-Fase 1:
+### `report_snapshots`
 
-- sem necessidade de banco proprio obrigatorio
-- agregacao sincrona consultando servicos fonte
+- `id`
+- `school_id`
+- `report_name`
+- `window_start_utc`
+- `window_end_utc`
+- `snapshot_version`
+- `payload_json`
+- `generated_at_utc`
+- `expires_at_utc`
 
-Fase 2:
+Uso atual:
 
-- read models por tenant
-- snapshots diarios
-- alertas de manutencao materializados
+- snapshots por tenant e janela de consulta para dashboards e paineis agregados
+- reaproveitamento de leitura recente sem recompor todo o fan-out em tempo real
+- base para alertas operacionais e financeiros agregados no proprio `Reporting`
